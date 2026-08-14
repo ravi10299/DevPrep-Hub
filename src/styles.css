@@ -1,1 +1,65 @@
 /* You can add global styles to this file, and also import other style files */
+html,
+body {
+  margin: 0;
+
+  padding: 0;
+
+  min-height: 100%;
+
+  font-family:
+    'Inter',
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-height: 100vh;
+
+  background: #ffffff;
+
+  transition:
+    background 0.25s ease;
+}
+
+body.dark-theme {
+  background: #0d1117;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd2df;
+
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aeb7c8;
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb {
+  background: #394456;
+}
