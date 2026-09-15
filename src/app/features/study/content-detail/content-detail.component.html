@@ -1,0 +1,78 @@
+@if (loading()) {
+  <div class="detail-loading">
+    <div class="loading-spinner"></div>
+    <p>Loading...</p>
+  </div>
+} @else if (error()) {
+  <div class="detail-error">
+    <h3>{{ error() }}</h3>
+    <a routerLink="/">← Back to content</a>
+  </div>
+} @else if (content(); as item) {
+  <article class="detail-card">
+    <div class="detail-back">
+      <a routerLink="/">← Back to content</a>
+    </div>
+
+    <h1 class="detail-title">{{ item.title }}</h1>
+
+    <div class="detail-meta">
+      @for (tech of item.technologies; track tech.id) {
+        <span class="technology-badge"
+          [class.angular]="tech.name === 'Angular'"
+          [class.java]="tech.name === 'Java Core'"
+          [class.spring]="tech.name === 'Spring Boot'"
+          [class.react]="tech.name === 'React'"
+          [class.mysql]="tech.name === 'MySQL'"
+        >
+          <i [class]="tech.icon"></i> {{ tech.name }}
+        </span>
+      }
+
+      @for (company of item.companies; track company.id) {
+        <span class="company-badge">{{ company.name }}</span>
+      }
+
+      @if (item.difficulty) {
+        <span class="difficulty-badge" [class]="item.difficulty.toLowerCase()">
+          <span class="difficulty-dot"></span> {{ item.difficulty }}
+        </span>
+      }
+    </div>
+
+    <div class="detail-body">
+      @for (point of parseBody(item.body); track $index) {
+        <p class="answer-point"><span class="bullet">▸</span> {{ point }}</p>
+      }
+    </div>
+
+    @if (item.codeSnippet) {
+      <div class="code-wrapper">
+        <div class="code-toolbar">
+          <span class="code-language">{{ item.codeLanguage }}</span>
+          <button class="copy-button" type="button" (click)="copyCode()">
+            @if (copied()) {
+              <span class="copy-check">✓</span> Copied!
+            } @else {
+              Copy Code
+            }
+          </button>
+        </div>
+        <pre><code>{{ item.codeSnippet }}</code></pre>
+      </div>
+    }
+
+    @if (item.tags.length) {
+      <div class="tags-row">
+        @for (tag of item.tags; track tag.id) {
+          <span class="tag-chip">{{ tag.name }}</span>
+        }
+      </div>
+    }
+
+    <div class="detail-footer-meta">
+      <span>By {{ item.authorName }}</span>
+      <span>{{ item.createdAt | slice:0:10 }}</span>
+    </div>
+  </article>
+}

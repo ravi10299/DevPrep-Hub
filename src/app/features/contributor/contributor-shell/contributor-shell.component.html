@@ -1,0 +1,38 @@
+<div class="contributor-layout">
+  <aside class="contributor-sidebar">
+    <a class="brand" routerLink="/">
+      <div class="brand-icon"><span>&lt;/&gt;</span></div>
+      <div class="brand-text"><strong>DevPrep</strong><span>Hub</span></div>
+    </a>
+
+    <div class="user-section">
+      <div class="user-avatar">{{ auth.user()?.name?.charAt(0) ?? 'C' }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ auth.user()?.name }}</span>
+        <span class="user-role">Contributor</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a routerLink="/contributor/content" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📄</span> My Content
+      </a>
+      <a routerLink="/contributor/content/new" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+        <span class="nav-icon">➕</span> New Content
+      </a>
+    </nav>
+
+    <div class="bottom-actions">
+      <a routerLink="/" class="nav-item">
+        <span class="nav-icon">🏠</span> Back to Site
+      </a>
+      <button class="nav-item logout" type="button" (click)="auth.logout()">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <main class="contributor-main">
+    <router-outlet />
+  </main>
+</div>

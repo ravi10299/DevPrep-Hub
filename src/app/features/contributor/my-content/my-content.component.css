@@ -1,0 +1,53 @@
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem;
+}
+.header h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0; }
+
+.btn-primary {
+  padding: 0.5rem 1.25rem; background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff; border-radius: 8px; text-decoration: none;
+  font-size: 0.875rem; font-weight: 600;
+}
+
+.status-filters { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.status-filters button {
+  padding: 0.4rem 1rem; border: 1px solid #d1d5db; border-radius: 100px;
+  background: #fff; color: #374151; font-size: 0.8rem; cursor: pointer;
+}
+.status-filters button.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+
+.loading, .empty { text-align: center; padding: 3rem; color: #64748b; }
+.content-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.content-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1rem 1.25rem; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 10px; gap: 1rem;
+}
+.content-card h3 { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin: 0 0 0.35rem; }
+.card-meta { display: flex; gap: 0.5rem; }
+.type { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 100px; background: #ede9fe; color: #5b21b6; }
+.status { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 100px; font-weight: 600; }
+.status.draft { background: #f1f5f9; color: #64748b; }
+.status.pending-review { background: #fef3c7; color: #92400e; }
+.status.approved { background: #d1fae5; color: #065f46; }
+.status.rejected { background: #fef2f2; color: #dc2626; }
+
+.review-note { font-size: 0.8rem; color: #dc2626; margin-top: 0.5rem; padding: 0.5rem; background: #fef2f2; border-radius: 6px; }
+
+.card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+.btn-edit {
+  padding: 0.4rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+  background: #fff; color: #374151; text-decoration: none; font-size: 0.8rem;
+}
+.btn-submit {
+  padding: 0.4rem 0.75rem; border: none; border-radius: 6px;
+  background: #059669; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .header { flex-wrap: wrap; gap: 0.75rem; }
+  .content-card { flex-wrap: wrap; }
+  .card-actions { width: 100%; }
+}

@@ -1,0 +1,148 @@
+import { Component, OnInit, signal, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ContentService } from '../../../core/services/content.service';
+import { TechnologyService } from '../../../core/services/technology.service';
+import { ToastService } from '../../../core/services/toast.service';
+import type { ContentFormData, ContentType, Difficulty } from '../../../core/models/content.model';
+import type { TechnologyDomain, Company, Tag } from '../../../core/models/technology.model';
+
+@Component({
+  selector: 'app-admin-content-form',
+  standalone: true,
+  imports: [FormsModule, RouterLink],
+  templateUrl: './content-form.component.html',
+  styleUrl: './content-form.component.css',
+})
+export class ContentFormComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private contentService = inject(ContentService);
+  private techService = inject(TechnologyService);
+  private toast = inject(ToastService);
+
+  editId = signal<string | null>(null);
+  loading = signal(false);
+  saving = signal(false);
+
+  title = signal('');
+  body = signal('');
+  contentType = signal<ContentType>('QUESTION');
+  difficulty = signal<Difficulty | ''>('');
+  codeSnippet = signal('');
+  codeLanguage = signal('');
+  status = signal<string>('APPROVED');
+  selectedTechIds = signal<string[]>([]);
+  selectedCompanyIds = signal<string[]>([]);
+  selectedTagIds = signal<string[]>([]);
+
+  domains = signal<TechnologyDomain[]>([]);
+  companies = signal<Company[]>([]);
+  tags = signal<Tag[]>([]);
+
+  contentTypes: { value: ContentType; label: string }[] = [
+    { value: 'QUESTION', label: 'Interview Question' },
+    { value: 'CONCEPT', label: 'Concept' },
+    { value: 'NOTE', label: 'Note' },
+    { value: 'CODE_EXAMPLE', label: 'Code Example' },
+    { value: 'CHEAT_SHEET', label: 'Cheat Sheet' },
+    { value: 'INTERVIEW_EXPERIENCE', label: 'Interview Experience' },
+    { value: 'PREPARATION_GUIDE', label: 'Preparation Guide' },
+    { value: 'SYSTEM_DESIGN', label: 'System Design' },
+    { value: 'DSA', label: 'DSA' },
+  ];
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.editId.set(id);
+      this.loadContent(id);
+    }
+    this.loadMetadata();
+  }
+
+  private async loadMetadata(): Promise<void> {
+    try {
+      const [domains, companies, tags] = await Promise.all([
+        this.techService.getTechnologies(),
+        this.techService.getCompanies(),
+        this.techService.getTags(),
+      ]);
+      this.domains.set(domains);
+      this.companies.set(companies);
+      this.tags.set(tags);
+    } catch { /* metadata loads best-effort */ }
+  }
+
+  private async loadContent(id: string): Promise<void> {
+    this.loading.set(true);
+    try {
+      const content = await this.contentService.getAdminContentById(id);
+      this.title.set(content.title);
+      this.body.set(content.body);
+      this.contentType.set(content.contentType);
+      this.difficulty.set(content.difficulty || '');
+      this.codeSnippet.set(content.codeSnippet || '');
+      this.codeLanguage.set(content.codeLanguage || '');
+      this.status.set(content.status);
+      this.selectedTechIds.set(content.technologies.map(t => t.id));
+      this.selectedCompanyIds.set(content.companies.map(c => c.id));
+      this.selectedTagIds.set(content.tags.map(t => t.id));
+    } catch {
+      this.toast.error('Failed to load content.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  toggleTech(id: string): void {
+    const ids = this.selectedTechIds();
+    this.selectedTechIds.set(ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
+  }
+
+  toggleCompany(id: string): void {
+    const ids = this.selectedCompanyIds();
+    this.selectedCompanyIds.set(ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
+  }
+
+  toggleTag(id: string): void {
+    const ids = this.selectedTagIds();
+    this.selectedTagIds.set(ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
+  }
+
+  async save(): Promise<void> {
+    if (!this.title().trim() || !this.body().trim()) {
+      this.toast.error('Title and body are required.');
+      return;
+    }
+
+    this.saving.set(true);
+    const data: ContentFormData = {
+      title: this.title(),
+      body: this.body(),
+      contentType: this.contentType(),
+      difficulty: this.difficulty() || null,
+      codeSnippet: this.codeSnippet() || null,
+      codeLanguage: this.codeLanguage() || null,
+      technologyIds: this.selectedTechIds(),
+      companyIds: this.selectedCompanyIds(),
+      tagIds: this.selectedTagIds(),
+      status: this.status() as ContentFormData['status'],
+    };
+
+    try {
+      if (this.editId()) {
+        await this.contentService.updateAdminContent(this.editId()!, data);
+        this.toast.success('Content updated.');
+      } else {
+        await this.contentService.createAdminContent(data);
+        this.toast.success('Content created.');
+      }
+      this.router.navigate(['/admin/content']);
+    } catch {
+      this.toast.error('Failed to save content.');
+    } finally {
+      this.saving.set(false);
+    }
+  }
+}

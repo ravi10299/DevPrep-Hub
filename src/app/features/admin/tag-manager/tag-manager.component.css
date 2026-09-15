@@ -1,0 +1,28 @@
+h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0 0 1.5rem; }
+.loading, .empty { text-align: center; padding: 3rem; color: #64748b; }
+
+.inline-form {
+  display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.inline-form input {
+  padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.8rem; outline: none; flex: 1; min-width: 200px;
+}
+.inline-form input:focus { border-color: #6366f1; }
+.btn-add {
+  padding: 0.5rem 1rem; border: none; border-radius: 6px;
+  background: #4f46e5; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+
+.tag-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.tag-item {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.4rem 0.75rem; background: #f1f5f9;
+  border: 1px solid #e2e8f0; border-radius: 100px;
+}
+.tag-name { font-size: 0.85rem; color: #334155; }
+.tag-count { font-size: 0.7rem; color: #94a3b8; }
+.tag-delete {
+  background: none; border: none; color: #dc2626; font-size: 1rem;
+  cursor: pointer; padding: 0; line-height: 1;
+}

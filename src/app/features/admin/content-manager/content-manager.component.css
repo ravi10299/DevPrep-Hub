@@ -1,0 +1,110 @@
+.manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.manager-header h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0; }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.btn-primary:hover { opacity: 0.9; }
+
+.status-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.status-filters button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 100px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.status-filters button.active {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
+
+.content-table { overflow-x: auto; }
+table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+}
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+.title-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 100px;
+  font-weight: 600;
+}
+.status-badge.draft { background: #f1f5f9; color: #64748b; }
+.status-badge.pending-review { background: #fef3c7; color: #92400e; }
+.status-badge.approved { background: #d1fae5; color: #065f46; }
+.status-badge.rejected { background: #fef2f2; color: #dc2626; }
+
+.actions-cell { display: flex; gap: 0.5rem; white-space: nowrap; }
+.action-link {
+  color: #4f46e5;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.action-delete {
+  color: #dc2626;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.loading, .empty { text-align: center; padding: 3rem; color: #64748b; }
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+.pagination button {
+  padding: 0.4rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination span { font-size: 0.8rem; color: #64748b; }

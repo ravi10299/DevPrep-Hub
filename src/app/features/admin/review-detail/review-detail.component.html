@@ -1,0 +1,48 @@
+<a routerLink="/admin/review" class="back-link">← Back to Review Queue</a>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else if (content(); as item) {
+  <div class="review-content">
+    <h1>{{ item.title }}</h1>
+
+    <div class="meta-row">
+      <span class="type-badge">{{ item.contentType }}</span>
+      @if (item.difficulty) {
+        <span class="diff-badge" [class]="item.difficulty.toLowerCase()">{{ item.difficulty }}</span>
+      }
+      <span class="author">by {{ item.authorName }}</span>
+    </div>
+
+    <div class="body-preview">{{ item.body }}</div>
+
+    @if (item.codeSnippet) {
+      <div class="code-preview">
+        <div class="code-lang">{{ item.codeLanguage }}</div>
+        <pre><code>{{ item.codeSnippet }}</code></pre>
+      </div>
+    }
+
+    @if (item.tags.length) {
+      <div class="tags-row">
+        @for (tag of item.tags; track tag.id) {
+          <span class="tag">{{ tag.name }}</span>
+        }
+      </div>
+    }
+
+    <div class="review-actions-section">
+      <h3>Review Decision</h3>
+
+      <div class="note-group">
+        <label for="reviewNote">Review Note (required for rejection)</label>
+        <textarea id="reviewNote" rows="3" [ngModel]="reviewNote()" (ngModelChange)="reviewNote.set($event)" name="reviewNote" placeholder="Feedback for the contributor..."></textarea>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn-approve" type="button" (click)="approve()">Approve</button>
+        <button class="btn-reject" type="button" (click)="reject()">Reject</button>
+      </div>
+    </div>
+  </div>
+}

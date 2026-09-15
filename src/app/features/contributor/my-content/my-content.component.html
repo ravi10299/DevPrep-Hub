@@ -1,0 +1,48 @@
+<div class="header">
+  <h1>My Content</h1>
+  <a class="btn-primary" routerLink="/contributor/content/new">+ New Content</a>
+</div>
+
+<div class="status-filters">
+  <button type="button" [class.active]="statusFilter() === ''" (click)="filterByStatus('')">All</button>
+  <button type="button" [class.active]="statusFilter() === 'DRAFT'" (click)="filterByStatus('DRAFT')">Draft</button>
+  <button type="button" [class.active]="statusFilter() === 'PENDING_REVIEW'" (click)="filterByStatus('PENDING_REVIEW')">Pending</button>
+  <button type="button" [class.active]="statusFilter() === 'APPROVED'" (click)="filterByStatus('APPROVED')">Approved</button>
+  <button type="button" [class.active]="statusFilter() === 'REJECTED'" (click)="filterByStatus('REJECTED')">Rejected</button>
+</div>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else {
+  <div class="content-list">
+    @for (item of contents(); track item.id) {
+      <div class="content-card">
+        <div class="card-info">
+          <h3>{{ item.title }}</h3>
+          <div class="card-meta">
+            <span class="type">{{ typeLabels[item.contentType] }}</span>
+            <span class="status" [class]="getStatusClass(item.status)">{{ item.status }}</span>
+          </div>
+          @if (item.reviewNote) {
+            <div class="review-note">
+              <strong>Review note:</strong> {{ item.reviewNote }}
+            </div>
+          }
+        </div>
+        <div class="card-actions">
+          @if (item.status === 'DRAFT' || item.status === 'REJECTED') {
+            <a class="btn-edit" [routerLink]="['/contributor/content/edit', item.id]">Edit</a>
+          }
+          @if (item.status === 'DRAFT') {
+            <button class="btn-submit" type="button" (click)="submitForReview(item.id)">Submit for Review</button>
+          }
+        </div>
+      </div>
+    }
+    @if (contents().length === 0) {
+      <div class="empty">
+        <p>No content yet. Start creating!</p>
+      </div>
+    }
+  </div>
+}

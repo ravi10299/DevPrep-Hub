@@ -1,0 +1,47 @@
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a class="admin-brand" routerLink="/">
+      <div class="brand-icon"><span>&lt;/&gt;</span></div>
+      <div class="brand-text"><strong>DevPrep</strong><span>Hub</span></div>
+    </a>
+
+    <div class="admin-user">
+      <div class="user-avatar">{{ auth.user()?.name?.charAt(0) ?? 'A' }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ auth.user()?.name }}</span>
+        <span class="user-role">Administrator</span>
+      </div>
+    </div>
+
+    <nav class="admin-nav">
+      <a routerLink="/admin/content" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📄</span> Content
+      </a>
+      <a routerLink="/admin/review" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">📋</span> Review Queue
+      </a>
+      <a routerLink="/admin/technologies" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">⚙️</span> Technologies
+      </a>
+      <a routerLink="/admin/companies" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🏢</span> Companies
+      </a>
+      <a routerLink="/admin/tags" routerLinkActive="active" class="nav-item">
+        <span class="nav-icon">🏷️</span> Tags
+      </a>
+    </nav>
+
+    <div class="admin-actions">
+      <a routerLink="/" class="nav-item">
+        <span class="nav-icon">🏠</span> Back to Site
+      </a>
+      <button class="nav-item logout" type="button" (click)="auth.logout()">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <router-outlet />
+  </main>
+</div>

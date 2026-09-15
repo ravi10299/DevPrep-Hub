@@ -1,0 +1,23 @@
+<h1>Company Manager</h1>
+
+<form class="inline-form" (ngSubmit)="add()">
+  <input type="text" placeholder="Company name" [ngModel]="newName()" (ngModelChange)="newName.set($event)" name="companyName" />
+  <button type="submit" class="btn-add">Add Company</button>
+</form>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else {
+  <div class="item-list">
+    @for (company of companies(); track company.id) {
+      <div class="item-row">
+        <span class="item-name">{{ company.name }}</span>
+        <span class="item-count">{{ company.content_count }} items</span>
+        <button class="btn-delete" type="button" (click)="remove(company.id)">Delete</button>
+      </div>
+    }
+    @if (companies().length === 0) {
+      <div class="empty">No companies.</div>
+    }
+  </div>
+}

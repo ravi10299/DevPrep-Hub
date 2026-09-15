@@ -1,0 +1,50 @@
+<h1>Technology Manager</h1>
+
+<div class="add-section">
+  <h3>Add Domain</h3>
+  <form class="inline-form" (ngSubmit)="addDomain()">
+    <input type="text" placeholder="Domain name" [ngModel]="newDomainName()" (ngModelChange)="newDomainName.set($event)" name="domainName" />
+    <button type="submit" class="btn-add">Add Domain</button>
+  </form>
+</div>
+
+<div class="add-section">
+  <h3>Add Technology</h3>
+  <form class="inline-form" (ngSubmit)="addTechnology()">
+    <input type="text" placeholder="Technology name" [ngModel]="newTechName()" (ngModelChange)="newTechName.set($event)" name="techName" />
+    <input type="text" placeholder="DevIcon class" [ngModel]="newTechIcon()" (ngModelChange)="newTechIcon.set($event)" name="techIcon" />
+    <select [ngModel]="newTechDomainId()" (ngModelChange)="newTechDomainId.set($event)" name="techDomain">
+      <option value="">Select Domain</option>
+      @for (domain of domains(); track domain.id) {
+        <option [value]="domain.id">{{ domain.name }}</option>
+      }
+    </select>
+    <button type="submit" class="btn-add">Add Tech</button>
+  </form>
+</div>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else {
+  @for (domain of domains(); track domain.id) {
+    <div class="domain-group">
+      <div class="domain-header">
+        <h3>{{ domain.name }}</h3>
+        <button class="btn-delete" type="button" (click)="deleteDomain(domain.id)">Delete Domain</button>
+      </div>
+      <div class="tech-list">
+        @for (tech of domain.technologies; track tech.id) {
+          <div class="tech-item">
+            <i [class]="tech.icon"></i>
+            <span>{{ tech.name }}</span>
+            <span class="count">{{ tech.content_count }} items</span>
+            <button class="btn-delete-sm" type="button" (click)="deleteTechnology(tech.id)">×</button>
+          </div>
+        }
+        @if (domain.technologies.length === 0) {
+          <div class="empty-tech">No technologies in this domain.</div>
+        }
+      </div>
+    </div>
+  }
+}

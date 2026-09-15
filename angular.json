@@ -35,7 +35,13 @@
             },
             "ssr": {
               "entry": "src/server.ts"
-            }
+            },
+            "externalDependencies": [
+              "better-sqlite3",
+              "bcryptjs",
+              "jsonwebtoken",
+              "cookie-parser"
+            ]
           },
           "configurations": {
             "production": {

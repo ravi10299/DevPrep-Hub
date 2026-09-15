@@ -1,0 +1,29 @@
+h1 { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0 0 1.5rem; }
+.loading, .empty { text-align: center; padding: 3rem; color: #64748b; }
+
+.inline-form {
+  display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.inline-form input {
+  padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.8rem; outline: none; flex: 1; min-width: 200px;
+}
+.inline-form input:focus { border-color: #6366f1; }
+.btn-add {
+  padding: 0.5rem 1rem; border: none; border-radius: 6px;
+  background: #4f46e5; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+}
+
+.item-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.item-row {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 0.75rem 1rem; background: #fff;
+  border: 1px solid #e2e8f0; border-radius: 8px;
+}
+.item-name { font-size: 0.9rem; font-weight: 500; color: #1e293b; flex: 1; }
+.item-count { font-size: 0.8rem; color: #94a3b8; }
+.btn-delete {
+  padding: 0.3rem 0.75rem; border: 1px solid #fca5a5; border-radius: 6px;
+  background: #fff; color: #dc2626; font-size: 0.75rem; cursor: pointer;
+}
+.btn-delete:hover { background: #fef2f2; }

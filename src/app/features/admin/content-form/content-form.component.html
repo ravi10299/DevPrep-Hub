@@ -1,0 +1,103 @@
+<div class="form-header">
+  <a routerLink="/admin/content" class="back-link">← Back</a>
+  <h1>{{ editId() ? 'Edit Content' : 'New Content' }}</h1>
+</div>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else {
+  <form class="content-form" (ngSubmit)="save()">
+    <div class="form-group">
+      <label for="title">Title *</label>
+      <input id="title" type="text" [ngModel]="title()" (ngModelChange)="title.set($event)" name="title" required placeholder="Enter title" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="contentType">Type</label>
+        <select id="contentType" [ngModel]="contentType()" (ngModelChange)="contentType.set($event)" name="contentType">
+          @for (ct of contentTypes; track ct.value) {
+            <option [value]="ct.value">{{ ct.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="difficulty">Difficulty</label>
+        <select id="difficulty" [ngModel]="difficulty()" (ngModelChange)="difficulty.set($event)" name="difficulty">
+          <option value="">None</option>
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" [ngModel]="status()" (ngModelChange)="status.set($event)" name="status">
+          <option value="DRAFT">Draft</option>
+          <option value="APPROVED">Approved</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="body">Body *</label>
+      <textarea id="body" rows="10" [ngModel]="body()" (ngModelChange)="body.set($event)" name="body" required placeholder="Content body..."></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="codeLanguage">Code Language</label>
+        <input id="codeLanguage" type="text" [ngModel]="codeLanguage()" (ngModelChange)="codeLanguage.set($event)" name="codeLanguage" placeholder="typescript, java, sql..." />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="codeSnippet">Code Snippet</label>
+      <textarea id="codeSnippet" rows="8" [ngModel]="codeSnippet()" (ngModelChange)="codeSnippet.set($event)" name="codeSnippet" placeholder="Paste code here..." class="code-textarea"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Technologies</label>
+      <div class="chip-grid">
+        @for (domain of domains(); track domain.id) {
+          @for (tech of domain.technologies; track tech.id) {
+            <button type="button" class="chip" [class.selected]="selectedTechIds().includes(tech.id)" (click)="toggleTech(tech.id)">
+              {{ tech.name }}
+            </button>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Companies</label>
+      <div class="chip-grid">
+        @for (company of companies(); track company.id) {
+          <button type="button" class="chip" [class.selected]="selectedCompanyIds().includes(company.id)" (click)="toggleCompany(company.id)">
+            {{ company.name }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Tags</label>
+      <div class="chip-grid">
+        @for (tag of tags(); track tag.id) {
+          <button type="button" class="chip" [class.selected]="selectedTagIds().includes(tag.id)" (click)="toggleTag(tag.id)">
+            {{ tag.name }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a routerLink="/admin/content" class="btn-cancel">Cancel</a>
+      <button type="submit" class="btn-save" [disabled]="saving()">
+        {{ saving() ? 'Saving...' : (editId() ? 'Update' : 'Create') }}
+      </button>
+    </div>
+  </form>
+}

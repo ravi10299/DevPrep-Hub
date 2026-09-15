@@ -1,0 +1,236 @@
+<div class="app-shell">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button
+        class="icon-button menu-button"
+        type="button"
+        aria-label="Open menu"
+        (click)="toggleSidebar()"
+      >
+        <span class="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+
+      <a class="brand" routerLink="/">
+        <div class="brand-logo">
+          <span class="brand-bracket left">&lt;</span>
+          <div class="brand-core">
+            <span>&lt;/&gt;</span>
+          </div>
+          <span class="brand-bracket right">&gt;</span>
+        </div>
+        <div class="brand-name">
+          <strong>DevPrep</strong>
+          <span>Hub</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="search-wrapper" [class.search-expanded]="searchExpanded()">
+      <span class="search-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M20 20l-4-4"></path>
+        </svg>
+      </span>
+      <input
+        type="search"
+        placeholder="Search questions, topics, companies, tags..."
+        [value]="searchTerm()"
+        (input)="onSearch($event)"
+      />
+      @if (searchTerm()) {
+        <button class="search-clear" type="button" (click)="searchTerm.set('')">×</button>
+      }
+      <button class="search-close-mobile" type="button" (click)="closeSearch()" aria-label="Close search">×</button>
+    </div>
+
+    @if (searchExpanded()) {
+      <div class="search-overlay" (click)="closeSearch()"></div>
+    }
+
+    <div class="header-actions">
+      <button class="search-toggle" type="button" (click)="toggleSearch()" aria-label="Search">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M20 20l-4-4"></path>
+        </svg>
+      </button>
+
+      <button class="bookmark-header" type="button" title="Bookmarks">
+        <span class="bookmark-header-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M6 3h12v18l-6-4-6 4V3z"></path>
+          </svg>
+          <span class="bookmark-counter">{{ bookmarkCount() }}</span>
+        </span>
+        <span class="bookmark-label">Bookmarks</span>
+      </button>
+
+      @if (auth.isAuthenticated()) {
+        @if (auth.isAdmin()) {
+          <a class="dashboard-link" routerLink="/admin">Admin</a>
+        }
+        @if (auth.isContributor()) {
+          <a class="dashboard-link" routerLink="/contributor">Dashboard</a>
+        }
+        <button class="auth-button" type="button" (click)="auth.logout()">Logout</button>
+      }
+
+      <button class="theme-button" type="button" (click)="toggleTheme()">
+        <span class="theme-icon">
+          @if (darkMode()) {
+            <svg viewBox="0 0 24 24">
+              <path d="M21 12.8A8.5 8.5 0 1111.2 3 6.5 6.5 0 0021 12.8z"></path>
+            </svg>
+          } @else {
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M4.93 19.07l1.41-1.41 M17.66 6.34l1.41-1.41"></path>
+            </svg>
+          }
+        </span>
+        <span>{{ darkMode() ? 'Dark Mode' : 'Light Mode' }}</span>
+        <span class="chevron">⌄</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="page-layout">
+    @if (sidebarOpen()) {
+      <div class="sidebar-overlay" (click)="closeSidebar()"></div>
+    }
+
+    <aside class="sidebar" [class.sidebar-open]="sidebarOpen()">
+      <button class="sidebar-collapse" type="button" (click)="closeSidebar()" aria-label="Close sidebar">‹</button>
+
+      <section class="filter-section">
+        <div class="section-title">TECHNOLOGY</div>
+        <div class="technology-list">
+          @for (domain of domains(); track domain.id) {
+            @for (tech of domain.technologies; track tech.id) {
+              <button
+                class="technology-item"
+                type="button"
+                [class.active]="selectedTechnologyId() === tech.id"
+                (click)="selectTechnology(selectedTechnologyId() === tech.id ? null : tech.id)"
+              >
+                <span class="technology-icon"
+                  [class.angular]="tech.name === 'Angular'"
+                  [class.java]="tech.name === 'Java Core'"
+                  [class.spring]="tech.name === 'Spring Boot'"
+                  [class.react]="tech.name === 'React'"
+                  [class.mysql]="tech.name === 'MySQL'"
+                >
+                  <i [class]="tech.icon"></i>
+                </span>
+                <span class="technology-info">
+                  <span>{{ tech.name }}</span>
+                  <small>{{ domain.name }}</small>
+                </span>
+                <span class="technology-count">{{ tech.content_count }}</span>
+              </button>
+            }
+          }
+        </div>
+      </section>
+
+      <section class="filter-section companies-section">
+        <div class="section-title">COMPANIES</div>
+        <div class="company-list">
+          @for (company of companies(); track company.id) {
+            <label class="company-item" [class.checked]="isCompanySelected(company.id)">
+              <input
+                type="checkbox"
+                [checked]="isCompanySelected(company.id)"
+                (change)="toggleCompany(company.id)"
+              />
+              <span class="custom-checkbox">
+                @if (isCompanySelected(company.id)) {
+                  <svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"></path></svg>
+                }
+              </span>
+              <span class="company-name">{{ company.name }}</span>
+              <span class="company-count">{{ company.content_count }}</span>
+            </label>
+          }
+        </div>
+      </section>
+
+      <section class="filter-section difficulty-section">
+        <div class="section-title">DIFFICULTY</div>
+        <div class="difficulty-list">
+          <button class="difficulty-pill all" type="button"
+            [class.active]="selectedDifficulty() === null"
+            (click)="selectDifficulty(null)">All</button>
+          <button class="difficulty-pill easy" type="button"
+            [class.active]="selectedDifficulty() === 'Easy'"
+            (click)="selectDifficulty('Easy')">Easy</button>
+          <button class="difficulty-pill medium" type="button"
+            [class.active]="selectedDifficulty() === 'Medium'"
+            (click)="selectDifficulty('Medium')">Medium</button>
+          <button class="difficulty-pill hard" type="button"
+            [class.active]="selectedDifficulty() === 'Hard'"
+            (click)="selectDifficulty('Hard')">Hard</button>
+        </div>
+
+        <button class="clear-sidebar-button" type="button" (click)="clearFilters()">
+          <span>↻</span> Clear Filters
+        </button>
+      </section>
+    </aside>
+
+    <main class="main-content">
+      <router-outlet />
+
+      <footer class="app-footer">
+        <div class="footer-top">
+          <div class="footer-brand-section">
+            <div class="footer-brand-logo">
+              <span>&lt;</span>
+              <strong>/&gt;</strong>
+            </div>
+            <div>
+              <h3>DevPrep Hub</h3>
+              <p>Your smart companion for technical interviews.</p>
+            </div>
+          </div>
+
+          <div class="footer-tech-section">
+            <span class="footer-section-label">Built for Developers</span>
+            <div class="footer-tech-list">
+              @for (domain of domains(); track domain.id) {
+                @for (tech of domain.technologies; track tech.id) {
+                  <span>{{ tech.name }}</span>
+                }
+              }
+            </div>
+          </div>
+
+          <div class="footer-developer">
+            <span class="footer-section-label">Developed by</span>
+            <h4>Ravi Kumar Verma</h4>
+            <p>Full Stack Java Developer</p>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <div class="footer-line"></div>
+          <div class="footer-bottom-content">
+            <span>© 2026 DevPrep Hub. All rights reserved.</span>
+            @if (!auth.isAuthenticated()) {
+              <a class="footer-admin-login" routerLink="/login">Admin Login</a>
+            }
+            <span class="footer-made">
+              Made with <span class="footer-heart">♥</span> &nbsp;and&nbsp;
+              <span class="footer-code">&lt;/&gt;</span> by Ravi Kumar Verma
+            </span>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>

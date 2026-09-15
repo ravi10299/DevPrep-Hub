@@ -1,0 +1,23 @@
+<h1>Tag Manager</h1>
+
+<form class="inline-form" (ngSubmit)="add()">
+  <input type="text" placeholder="Tag name" [ngModel]="newName()" (ngModelChange)="newName.set($event)" name="tagName" />
+  <button type="submit" class="btn-add">Add Tag</button>
+</form>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else {
+  <div class="tag-grid">
+    @for (tag of tags(); track tag.id) {
+      <div class="tag-item">
+        <span class="tag-name">{{ tag.name }}</span>
+        <span class="tag-count">{{ tag.content_count }}</span>
+        <button class="tag-delete" type="button" (click)="remove(tag.id)">×</button>
+      </div>
+    }
+    @if (tags().length === 0) {
+      <div class="empty">No tags.</div>
+    }
+  </div>
+}

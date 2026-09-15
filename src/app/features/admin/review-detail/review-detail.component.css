@@ -1,0 +1,84 @@
+.back-link { color: #6366f1; text-decoration: none; font-size: 0.875rem; }
+.loading { text-align: center; padding: 3rem; color: #64748b; }
+
+.review-content { max-width: 800px; }
+.review-content h1 { font-size: 1.375rem; font-weight: 700; color: #1e293b; margin: 1rem 0 0.75rem; }
+
+.meta-row { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.type-badge {
+  font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 100px;
+  background: #ede9fe; color: #5b21b6; font-weight: 500;
+}
+.diff-badge { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 100px; font-weight: 500; }
+.diff-badge.easy { background: #d1fae5; color: #065f46; }
+.diff-badge.medium { background: #fef3c7; color: #92400e; }
+.diff-badge.hard { background: #fef2f2; color: #dc2626; }
+.author { font-size: 0.8rem; color: #64748b; }
+
+.body-preview {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  color: #334155;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.code-preview {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.code-lang {
+  padding: 0.4rem 0.75rem;
+  background: #f1f5f9;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+pre {
+  margin: 0;
+  padding: 1rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.tags-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
+.tag {
+  font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 100px;
+  background: #f1f5f9; color: #475569;
+}
+
+.review-actions-section {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1.5rem;
+}
+.review-actions-section h3 { font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0 0 1rem; }
+
+.note-group { margin-bottom: 1rem; }
+.note-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 0.35rem; }
+.note-group textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  outline: none;
+}
+.note-group textarea:focus { border-color: #6366f1; }
+
+.action-buttons { display: flex; gap: 0.75rem; }
+.btn-approve {
+  padding: 0.5rem 1.5rem; border: none; border-radius: 8px;
+  background: #059669; color: #fff; font-weight: 600; cursor: pointer;
+}
+.btn-reject {
+  padding: 0.5rem 1.5rem; border: none; border-radius: 8px;
+  background: #dc2626; color: #fff; font-weight: 600; cursor: pointer;
+}

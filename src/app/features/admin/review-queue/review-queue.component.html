@@ -1,0 +1,29 @@
+<div class="manager-header">
+  <h1>Review Queue</h1>
+</div>
+
+@if (loading()) {
+  <div class="loading">Loading...</div>
+} @else if (contents().length === 0) {
+  <div class="empty">
+    <p>No content pending review.</p>
+  </div>
+} @else {
+  <div class="review-list">
+    @for (item of contents(); track item.id) {
+      <div class="review-card">
+        <div class="review-info">
+          <h3>{{ item.title }}</h3>
+          <div class="review-meta">
+            <span class="type-badge">{{ typeLabels[item.contentType] }}</span>
+            <span class="author">by {{ item.authorName }}</span>
+          </div>
+        </div>
+        <div class="review-actions">
+          <button class="btn-approve" type="button" (click)="approve(item.id)">Approve</button>
+          <a class="btn-review" [routerLink]="['/admin/review', item.id]">Review</a>
+        </div>
+      </div>
+    }
+  </div>
+}

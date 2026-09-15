@@ -1,0 +1,195 @@
+<section class="active-filters-section">
+  <div class="active-filters-header">
+    <h2>Active Filters</h2>
+  </div>
+  <div class="active-filter-list">
+    @if (shell.selectedTechnologyId()) {
+      <button class="active-filter" type="button" (click)="shell.selectTechnology(null)">
+        {{ getTechFilterName() }}
+        <span class="filter-x">×</span>
+      </button>
+    }
+
+    @for (companyId of shell.selectedCompanyIds(); track companyId) {
+      <button class="active-filter company-filter" type="button" (click)="shell.toggleCompany(companyId)">
+        {{ getCompanyFilterName(companyId) }}
+        <span class="filter-x">×</span>
+      </button>
+    }
+
+    @if (shell.selectedDifficulty()) {
+      <button class="active-filter" type="button" (click)="shell.selectDifficulty(null)">
+        <span class="difficulty-dot" [class]="shell.selectedDifficulty()!.toLowerCase()"></span>
+        {{ shell.selectedDifficulty() }}
+        <span class="filter-x">×</span>
+      </button>
+    }
+
+    @if (shell.searchTerm()) {
+      <button class="active-filter search-filter" type="button" (click)="shell.searchTerm.set('')">
+        Search: "{{ shell.searchTerm() }}"
+        <span class="filter-x">×</span>
+      </button>
+    }
+
+    @if (shell.hasActiveFilters()) {
+      <button class="clear-all-button" type="button" (click)="shell.clearFilters()">
+        <span>♜</span> Clear All
+      </button>
+    }
+  </div>
+</section>
+
+<section class="results-header">
+  <div class="result-count">
+    Showing <strong>{{ totalCount() }}</strong> Items
+  </div>
+</section>
+
+<section class="question-feed">
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading content...</p>
+    </div>
+  } @else {
+    @for (item of contents(); track item.id; let index = $index) {
+      <article class="question-card" [class.expanded]="isExpanded(item.id)">
+        <div class="question-header" (click)="toggleExpanded(item.id)">
+          <div class="question-number">{{ index + 1 + (currentPage() - 1) * 20 }}</div>
+
+          <div class="question-content">
+            <h3>{{ item.title }}</h3>
+            <div class="badge-row">
+              @if (getTechName(item)) {
+                <span class="technology-badge"
+                  [class.angular]="getTechName(item) === 'Angular'"
+                  [class.java]="getTechName(item) === 'Java Core'"
+                  [class.spring]="getTechName(item) === 'Spring Boot'"
+                  [class.react]="getTechName(item) === 'React'"
+                  [class.mysql]="getTechName(item) === 'MySQL'"
+                >
+                  <i [class]="getTechIcon(item)"></i>
+                  {{ getTechName(item) }}
+                </span>
+              }
+
+              @if (getCompanyName(item)) {
+                <span class="company-badge" [class]="getCompanyClass(item)">
+                  <span class="company-logo">{{ getCompanyInitial(item) }}</span>
+                  {{ getCompanyName(item) }}
+                </span>
+              }
+
+              @if (item.difficulty) {
+                <span class="difficulty-badge" [class]="item.difficulty.toLowerCase()">
+                  <span class="difficulty-dot"></span>
+                  {{ item.difficulty }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="question-actions" (click)="$event.stopPropagation()">
+            <button
+              class="card-bookmark"
+              type="button"
+              [class.bookmarked]="isBookmarked(item.id)"
+              (click)="toggleBookmark(item.id)"
+              [attr.aria-label]="isBookmarked(item.id) ? 'Remove bookmark' : 'Bookmark'"
+            >
+              <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3z"></path></svg>
+            </button>
+
+            <button class="expand-button" type="button" (click)="toggleExpanded(item.id)" aria-label="Toggle answer">
+              @if (isExpanded(item.id)) {
+                <span>⌃</span>
+              } @else {
+                <span>⌄</span>
+              }
+            </button>
+          </div>
+        </div>
+
+        @if (isExpanded(item.id)) {
+          <div class="answer-section">
+            <div class="answer-title">Answer</div>
+            <div class="answer-text">
+              @for (point of parseBody(item.body); track $index) {
+                <div class="answer-point">
+                  <span class="bullet">▸</span>
+                  <span>{{ point }}</span>
+                </div>
+              }
+            </div>
+
+            @if (item.codeSnippet) {
+              <div class="code-label">Example:</div>
+              <div class="code-wrapper">
+                <div class="code-toolbar">
+                  <span class="code-language">{{ item.codeLanguage }}</span>
+                  <button class="copy-button" type="button" (click)="copyCode(item)">
+                    @if (copiedId() === item.id) {
+                      <span class="copy-check">✓</span> Copied!
+                    } @else {
+                      <svg viewBox="0 0 24 24">
+                        <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                        <path d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1"></path>
+                      </svg>
+                      Copy Code
+                    }
+                  </button>
+                </div>
+                <pre><code>{{ item.codeSnippet }}</code></pre>
+              </div>
+            }
+
+            @if (item.tags.length) {
+              <div class="tags-row">
+                @for (tag of item.tags; track tag.id) {
+                  <span class="tag-chip">{{ tag.name }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </article>
+    }
+
+    @if (contents().length === 0 && !loading()) {
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h3>No content found</h3>
+        <p>Try changing your search or filters.</p>
+        <button type="button" (click)="shell.clearFilters()">Clear Filters</button>
+      </div>
+    }
+  }
+</section>
+
+@if (totalPages > 1) {
+  <nav class="pagination" aria-label="Content pagination">
+    <button
+      class="page-button"
+      type="button"
+      [disabled]="currentPage() === 1"
+      (click)="goToPage(currentPage() - 1)"
+    >← Prev</button>
+
+    @for (page of getPaginationRange(); track page) {
+      <button
+        class="page-button"
+        type="button"
+        [class.active]="page === currentPage()"
+        (click)="goToPage(page)"
+      >{{ page }}</button>
+    }
+
+    <button
+      class="page-button"
+      type="button"
+      [disabled]="currentPage() === totalPages"
+      (click)="goToPage(currentPage() + 1)"
+    >Next →</button>
+  </nav>
+}
