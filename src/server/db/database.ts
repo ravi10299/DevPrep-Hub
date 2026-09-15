@@ -2,7 +2,8 @@ import Database from 'better-sqlite3';
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 
-const DB_DIR = join(process.cwd(), 'data');
+const isServerless = !!(process.env['VERCEL'] || process.env['AWS_LAMBDA_FUNCTION_NAME']);
+const DB_DIR = isServerless ? '/tmp/data' : join(process.cwd(), 'data');
 mkdirSync(DB_DIR, { recursive: true });
 const DB_PATH = process.env['DATABASE_URL']?.replace('file:', '') ||
   join(DB_DIR, 'devprep.db');
