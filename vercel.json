@@ -1,8 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "api/[...path].ts": {
-      "includeFiles": "node_modules/better-sqlite3/**"
+    "api/[...path].mjs": {
+      "includeFiles": "dist/DevPrep_Hub/server/**,dist/DevPrep_Hub/browser/**,node_modules/better-sqlite3/**,node_modules/bcryptjs/**,node_modules/jsonwebtoken/**,node_modules/cookie-parser/**"
     }
   }
 }
