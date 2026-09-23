@@ -1,6 +1,11 @@
-import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import bcryptjs from 'bcryptjs';
 import { getDb, initializeDatabase } from './database.js';
+
+function deterministicId(seed: string): string {
+  const hex = createHash('sha256').update(`devprephub:${seed}`).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
 
 export async function seedDatabase(): Promise<void> {
   initializeDatabase();
@@ -9,7 +14,7 @@ export async function seedDatabase(): Promise<void> {
   const existingAdmin = db.prepare('SELECT id FROM users WHERE role = ?').get('ADMIN');
   if (existingAdmin) return;
 
-  const adminId = randomUUID();
+  const adminId = deterministicId('user:admin');
   const adminPasswordHash = await bcryptjs.hash(
     process.env['ADMIN_PASSWORD'] || 'admin123',
     12
@@ -34,7 +39,7 @@ export async function seedDatabase(): Promise<void> {
     INSERT INTO technology_domains (id, name, slug, sort_order) VALUES (?, ?, ?, ?)
   `);
   for (const d of domainData) {
-    const id = randomUUID();
+    const id = deterministicId(`domain:${d.slug}`);
     insertDomain.run(id, d.name, d.slug, d.sort);
     domains[d.slug] = id;
   }
@@ -54,7 +59,7 @@ export async function seedDatabase(): Promise<void> {
     INSERT INTO technologies (id, name, slug, icon, domain_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)
   `);
   for (const t of techData) {
-    const id = randomUUID();
+    const id = deterministicId(`tech:${t.slug}`);
     insertTech.run(id, t.name, t.slug, t.icon, domains[t.domain], t.sort);
     techs[t.name] = id;
   }
@@ -74,7 +79,7 @@ export async function seedDatabase(): Promise<void> {
     INSERT INTO companies (id, name, slug) VALUES (?, ?, ?)
   `);
   for (const c of companyData) {
-    const id = randomUUID();
+    const id = deterministicId(`company:${c.slug}`);
     insertCompany.run(id, c.name, c.slug);
     companies[c.name] = id;
   }
@@ -102,7 +107,7 @@ export async function seedDatabase(): Promise<void> {
   for (const name of tagNames) {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (!tags[name]) {
-      const id = randomUUID();
+      const id = deterministicId(`tag:${slug}`);
       insertTag.run(id, name, slug);
       tags[name] = id;
     }
@@ -285,7 +290,7 @@ export async function seedDatabase(): Promise<void> {
 
   const seedAll = db.transaction(() => {
     for (const q of questions) {
-      const contentId = randomUUID();
+      const contentId = deterministicId(`content:${q.title}`);
       const body = JSON.stringify(q.answer);
 
       insertContent.run(
