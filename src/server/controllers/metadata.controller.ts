@@ -91,6 +91,20 @@ const TECH_ICON_MAP: Record<string, string> = {
   'data structures': 'devicon-thealgorithms-plain',
   'dsa': 'devicon-thealgorithms-plain',
   'algorithms': 'devicon-thealgorithms-plain',
+  'ai': 'devicon-tensorflow-original',
+  'artificial intelligence': 'devicon-tensorflow-original',
+  'ml': 'devicon-pytorch-original',
+  'machine learning': 'devicon-pytorch-original',
+  'tensorflow': 'devicon-tensorflow-original',
+  'pytorch': 'devicon-pytorch-original',
+  'jupyter': 'devicon-jupyter-plain',
+  'numpy': 'devicon-numpy-original',
+  'pandas': 'devicon-pandas-original',
+  'opencv': 'devicon-opencv-plain',
+  'anaconda': 'devicon-anaconda-original',
+  'kaggle': 'devicon-kaggle-original',
+  'scikit-learn': 'devicon-scikitlearn-plain',
+  'keras': 'devicon-keras-plain',
 };
 
 function resolveIcon(name: string, explicitIcon?: string): string {
