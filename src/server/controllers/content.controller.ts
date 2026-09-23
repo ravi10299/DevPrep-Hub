@@ -53,6 +53,61 @@ async function attachRelations(db: Client, contentId: string) {
   };
 }
 
+type RelationMap = Record<string, Awaited<ReturnType<typeof attachRelations>>>;
+
+async function batchAttachRelations(db: Client, contentIds: string[]): Promise<RelationMap> {
+  if (contentIds.length === 0) return {};
+
+  const placeholders = contentIds.map(() => '?').join(',');
+
+  const [techResult, companyResult, tagResult] = await Promise.all([
+    db.execute({
+      sql: `SELECT ct.content_id, t.id, t.name, t.slug, t.icon, td.name as domain_name, td.slug as domain_slug
+            FROM content_technologies ct
+            JOIN technologies t ON ct.technology_id = t.id
+            JOIN technology_domains td ON t.domain_id = td.id
+            WHERE ct.content_id IN (${placeholders})`,
+      args: contentIds,
+    }),
+    db.execute({
+      sql: `SELECT cc.content_id, c.id, c.name, c.slug
+            FROM content_companies cc
+            JOIN companies c ON cc.company_id = c.id
+            WHERE cc.content_id IN (${placeholders})`,
+      args: contentIds,
+    }),
+    db.execute({
+      sql: `SELECT ct.content_id, t.id, t.name, t.slug
+            FROM content_tags ct
+            JOIN tags t ON ct.tag_id = t.id
+            WHERE ct.content_id IN (${placeholders})`,
+      args: contentIds,
+    }),
+  ]);
+
+  const map: RelationMap = {};
+  for (const id of contentIds) {
+    map[id] = { technologies: [], companies: [], tags: [] };
+  }
+
+  for (const row of techResult.rows) {
+    const r = row as unknown as { content_id: string; id: string; name: string; slug: string; icon: string; domain_name: string; domain_slug: string };
+    map[r.content_id]?.technologies.push({ id: r.id, name: r.name, slug: r.slug, icon: r.icon, domain_name: r.domain_name, domain_slug: r.domain_slug });
+  }
+
+  for (const row of companyResult.rows) {
+    const r = row as unknown as { content_id: string; id: string; name: string; slug: string };
+    map[r.content_id]?.companies.push({ id: r.id, name: r.name, slug: r.slug });
+  }
+
+  for (const row of tagResult.rows) {
+    const r = row as unknown as { content_id: string; id: string; name: string; slug: string };
+    map[r.content_id]?.tags.push({ id: r.id, name: r.name, slug: r.slug });
+  }
+
+  return map;
+}
+
 function formatContent(row: ContentRow, relations: Awaited<ReturnType<typeof attachRelations>>) {
   return {
     id: row.id,
@@ -140,10 +195,8 @@ export async function getPublicContent(req: Request, res: Response): Promise<voi
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
   const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = await Promise.all(rows.map(async (row) => {
-    const relations = await attachRelations(db, row.id);
-    return formatContent(row, relations);
-  }));
+  const relationsMap = await batchAttachRelations(db, rows.map(r => r.id));
+  const data = rows.map(row => formatContent(row, relationsMap[row.id]));
 
   res.json({ data, total, page, limit });
 }
@@ -219,10 +272,8 @@ export async function getAdminContent(req: AuthRequest, res: Response): Promise<
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
   const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = await Promise.all(rows.map(async (row) => {
-    const relations = await attachRelations(db, row.id);
-    return formatContent(row, relations);
-  }));
+  const relationsMap = await batchAttachRelations(db, rows.map(r => r.id));
+  const data = rows.map(row => formatContent(row, relationsMap[row.id]));
 
   res.json({ data, total, page, limit });
 }
@@ -387,10 +438,8 @@ export async function getContributorContent(req: AuthRequest, res: Response): Pr
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
   const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = await Promise.all(rows.map(async (row) => {
-    const relations = await attachRelations(db, row.id);
-    return formatContent(row, relations);
-  }));
+  const relationsMap = await batchAttachRelations(db, rows.map(r => r.id));
+  const data = rows.map(row => formatContent(row, relationsMap[row.id]));
 
   res.json({ data, total, page, limit });
 }

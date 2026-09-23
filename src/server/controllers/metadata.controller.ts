@@ -7,6 +7,97 @@ function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+const TECH_ICON_MAP: Record<string, string> = {
+  'angular': 'devicon-angular-plain',
+  'react': 'devicon-react-original',
+  'vue': 'devicon-vuejs-plain',
+  'vue.js': 'devicon-vuejs-plain',
+  'vuejs': 'devicon-vuejs-plain',
+  'next.js': 'devicon-nextjs-plain',
+  'nextjs': 'devicon-nextjs-plain',
+  'nuxt': 'devicon-nuxtjs-plain',
+  'svelte': 'devicon-svelte-plain',
+  'java': 'devicon-java-plain',
+  'java core': 'devicon-java-plain',
+  'spring': 'devicon-spring-plain',
+  'spring boot': 'devicon-spring-plain',
+  'javascript': 'devicon-javascript-plain',
+  'typescript': 'devicon-typescript-plain',
+  'python': 'devicon-python-plain',
+  'c': 'devicon-c-plain',
+  'c++': 'devicon-cplusplus-plain',
+  'c#': 'devicon-csharp-plain',
+  'csharp': 'devicon-csharp-plain',
+  'go': 'devicon-go-original-wordmark',
+  'golang': 'devicon-go-original-wordmark',
+  'rust': 'devicon-rust-original',
+  'ruby': 'devicon-ruby-plain',
+  'php': 'devicon-php-plain',
+  'swift': 'devicon-swift-plain',
+  'kotlin': 'devicon-kotlin-plain',
+  'dart': 'devicon-dart-plain',
+  'flutter': 'devicon-flutter-plain',
+  'node.js': 'devicon-nodejs-plain',
+  'nodejs': 'devicon-nodejs-plain',
+  'node': 'devicon-nodejs-plain',
+  'express': 'devicon-express-original',
+  'express.js': 'devicon-express-original',
+  'django': 'devicon-django-plain',
+  'flask': 'devicon-flask-original',
+  'rails': 'devicon-rails-plain',
+  'ruby on rails': 'devicon-rails-plain',
+  '.net': 'devicon-dotnetcore-plain',
+  'dotnet': 'devicon-dotnetcore-plain',
+  'mysql': 'devicon-mysql-original',
+  'postgresql': 'devicon-postgresql-plain',
+  'postgres': 'devicon-postgresql-plain',
+  'mongodb': 'devicon-mongodb-plain',
+  'redis': 'devicon-redis-plain',
+  'sqlite': 'devicon-sqlite-plain',
+  'oracle': 'devicon-oracle-original',
+  'firebase': 'devicon-firebase-plain',
+  'docker': 'devicon-docker-plain',
+  'kubernetes': 'devicon-kubernetes-plain',
+  'aws': 'devicon-amazonwebservices-original',
+  'azure': 'devicon-azure-plain',
+  'gcp': 'devicon-googlecloud-plain',
+  'google cloud': 'devicon-googlecloud-plain',
+  'git': 'devicon-git-plain',
+  'github': 'devicon-github-original',
+  'linux': 'devicon-linux-plain',
+  'html': 'devicon-html5-plain',
+  'html5': 'devicon-html5-plain',
+  'css': 'devicon-css3-plain',
+  'css3': 'devicon-css3-plain',
+  'sass': 'devicon-sass-original',
+  'tailwind': 'devicon-tailwindcss-plain',
+  'tailwind css': 'devicon-tailwindcss-plain',
+  'bootstrap': 'devicon-bootstrap-plain',
+  'webpack': 'devicon-webpack-plain',
+  'graphql': 'devicon-graphql-plain',
+  'scala': 'devicon-scala-plain',
+  'r': 'devicon-r-plain',
+  'matlab': 'devicon-matlab-plain',
+  'terraform': 'devicon-terraform-plain',
+  'nginx': 'devicon-nginx-original',
+  'apache': 'devicon-apache-plain',
+  'jenkins': 'devicon-jenkins-plain',
+  'react native': 'devicon-react-original',
+  'electron': 'devicon-electron-original',
+  'figma': 'devicon-figma-plain',
+  'unity': 'devicon-unity-original',
+  'android': 'devicon-android-plain',
+  'ios': 'devicon-apple-original',
+  'data structures': 'devicon-thealgorithms-plain',
+  'dsa': 'devicon-thealgorithms-plain',
+  'algorithms': 'devicon-thealgorithms-plain',
+};
+
+function resolveIcon(name: string, explicitIcon?: string): string {
+  if (explicitIcon?.trim()) return explicitIcon.trim();
+  return TECH_ICON_MAP[name.toLowerCase()] || '';
+}
+
 // ── Technologies (public + admin) ──
 
 export async function getTechnologies(_req: Request, res: Response): Promise<void> {
@@ -40,11 +131,12 @@ export async function createTechnology(req: AuthRequest, res: Response): Promise
   const { name, icon, domainId, sortOrder } = req.body;
   const id = randomUUID();
   const slug = slugify(name);
+  const resolvedIcon = resolveIcon(name, icon);
 
   try {
     await db.execute({
       sql: 'INSERT INTO technologies (id, name, slug, icon, domain_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
-      args: [id, name, slug, icon || '', domainId, sortOrder || 0],
+      args: [id, name, slug, resolvedIcon, domainId, sortOrder || 0],
     });
     res.status(201).json({ id, name, slug });
   } catch (e: unknown) {
@@ -61,9 +153,10 @@ export async function updateTechnology(req: AuthRequest, res: Response): Promise
   const db = getClient();
   const { name, icon, domainId, sortOrder } = req.body;
   const slug = slugify(name);
+  const resolvedIcon = resolveIcon(name, icon);
   const result = await db.execute({
     sql: 'UPDATE technologies SET name = ?, slug = ?, icon = ?, domain_id = ?, sort_order = ? WHERE id = ?',
-    args: [name, slug, icon || '', domainId, sortOrder || 0, req.params['id'] as string],
+    args: [name, slug, resolvedIcon, domainId, sortOrder || 0, req.params['id'] as string],
   });
 
   if (result.rowsAffected === 0) {

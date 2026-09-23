@@ -107,6 +107,27 @@
     <aside class="sidebar" [class.sidebar-open]="sidebarOpen()">
       <button class="sidebar-collapse" type="button" (click)="closeSidebar()" aria-label="Close sidebar">‹</button>
 
+      <div class="sidebar-auth">
+        @if (auth.isAuthenticated()) {
+          @if (auth.isAdmin()) {
+            <a class="sidebar-auth-link admin-link" routerLink="/admin" (click)="closeSidebar()">
+              <span class="sidebar-auth-icon">&#9881;</span>
+              Admin Dashboard
+            </a>
+          }
+          @if (auth.isContributor()) {
+            <a class="sidebar-auth-link contributor-link" routerLink="/contributor" (click)="closeSidebar()">
+              <span class="sidebar-auth-icon">&#9998;</span>
+              Contributor Dashboard
+            </a>
+          }
+          <button class="sidebar-auth-link logout-link" type="button" (click)="auth.logout(); closeSidebar()">
+            <span class="sidebar-auth-icon">&#8617;</span>
+            Logout
+          </button>
+        }
+      </div>
+
       <section class="filter-section">
         <div class="section-title">TECHNOLOGY</div>
         <div class="technology-list">

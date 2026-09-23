@@ -12,7 +12,7 @@
   <h3>Add Technology</h3>
   <form class="inline-form" (ngSubmit)="addTechnology()">
     <input type="text" placeholder="Technology name" [ngModel]="newTechName()" (ngModelChange)="newTechName.set($event)" name="techName" />
-    <input type="text" placeholder="DevIcon class" [ngModel]="newTechIcon()" (ngModelChange)="newTechIcon.set($event)" name="techIcon" />
+    <input type="text" placeholder="Icon class (auto-detected if empty)" [ngModel]="newTechIcon()" (ngModelChange)="newTechIcon.set($event)" name="techIcon" />
     <select [ngModel]="newTechDomainId()" (ngModelChange)="newTechDomainId.set($event)" name="techDomain">
       <option value="">Select Domain</option>
       @for (domain of domains(); track domain.id) {

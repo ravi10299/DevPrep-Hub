@@ -47,3 +47,14 @@
   text-decoration: none;
   font-size: 0.8rem;
 }
+
+@media (max-width: 768px) {
+  .manager-header h1 { font-size: 1.25rem; }
+  .review-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .review-actions { width: 100%; }
+  .btn-approve, .btn-review { flex: 1; text-align: center; justify-content: center; }
+}
