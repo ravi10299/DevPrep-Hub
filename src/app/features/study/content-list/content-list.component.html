@@ -40,6 +40,29 @@
   </div>
 </section>
 
+<section class="content-type-tabs">
+  <button class="content-tab" type="button"
+    [class.active]="selectedContentTab() === 'all'"
+    (click)="selectContentTab('all')">
+    All
+  </button>
+  <button class="content-tab" type="button"
+    [class.active]="selectedContentTab() === 'questions'"
+    (click)="selectContentTab('questions')">
+    Interview Questions
+  </button>
+  <button class="content-tab" type="button"
+    [class.active]="selectedContentTab() === 'concepts'"
+    (click)="selectContentTab('concepts')">
+    Concepts &amp; Topics
+  </button>
+  <button class="content-tab" type="button"
+    [class.active]="selectedContentTab() === 'cheatsheets'"
+    (click)="selectContentTab('cheatsheets')">
+    Cheat Sheets
+  </button>
+</section>
+
 <section class="results-header">
   <div class="result-count">
     Showing <strong>{{ totalCount() }}</strong> Items
@@ -54,13 +77,17 @@
     </div>
   } @else {
     @for (item of contents(); track item.id; let index = $index) {
-      <article class="question-card" [class.expanded]="isExpanded(item.id)">
+      <article class="question-card" [class.expanded]="isExpanded(item.id)" [class.concept-card]="isConcept(item)" [class.cheatsheet-card]="isCheatSheet(item)">
         <div class="question-header" (click)="toggleExpanded(item.id)">
           <div class="question-number">{{ index + 1 + (currentPage() - 1) * 20 }}</div>
 
           <div class="question-content">
             <h3>{{ item.title }}</h3>
             <div class="badge-row">
+              <span class="content-type-badge" [class.question-type]="isQuestion(item)" [class.concept-type]="isConcept(item)" [class.cheatsheet-type]="isCheatSheet(item)">
+                {{ getContentTypeLabel(item) }}
+              </span>
+
               @if (getTechName(item)) {
                 <span class="technology-badge"
                   [class.angular]="getTechName(item) === 'Angular'"
@@ -113,36 +140,21 @@
 
         @if (isExpanded(item.id)) {
           <div class="answer-section">
-            <div class="answer-title">Answer</div>
-            <div class="answer-text">
-              @for (point of parseBody(item.body); track $index) {
-                <div class="answer-point">
-                  <span class="bullet">▸</span>
-                  <span>{{ point }}</span>
-                </div>
+            <div class="answer-title">
+              @if (isQuestion(item)) {
+                Brief Answer
+              } @else if (isCheatSheet(item)) {
+                Preview
+              } @else {
+                Overview
               }
             </div>
-
-            @if (item.codeSnippet) {
-              <div class="code-label">Example:</div>
-              <div class="code-wrapper">
-                <div class="code-toolbar">
-                  <span class="code-language">{{ item.codeLanguage }}</span>
-                  <button class="copy-button" type="button" (click)="copyCode(item)">
-                    @if (copiedId() === item.id) {
-                      <span class="copy-check">✓</span> Copied!
-                    } @else {
-                      <svg viewBox="0 0 24 24">
-                        <rect x="9" y="9" width="11" height="11" rx="2"></rect>
-                        <path d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1"></path>
-                      </svg>
-                      Copy Code
-                    }
-                  </button>
-                </div>
-                <pre><code>{{ item.codeSnippet }}</code></pre>
+            <div class="answer-text">
+              <div class="answer-point">
+                <span class="bullet">▸</span>
+                <span>{{ getPreviewBody(item.body) }}</span>
               </div>
-            }
+            </div>
 
             @if (item.tags.length) {
               <div class="tags-row">
@@ -151,6 +163,19 @@
                 }
               </div>
             }
+
+            <div class="card-footer">
+              <a class="read-more-link" [routerLink]="['/content', item.id]">
+                @if (isQuestion(item)) {
+                  Read Full Answer →
+                } @else if (isCheatSheet(item)) {
+                  View Cheat Sheet →
+                } @else {
+                  Read Full Topic →
+                }
+              </a>
+              <span class="card-author">By {{ item.authorName }}</span>
+            </div>
           </div>
         }
       </article>

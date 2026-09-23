@@ -27,6 +27,7 @@ export async function initializeDatabase(): Promise<void> {
       name TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK (role IN ('ADMIN', 'CONTRIBUTOR')),
+      portfolio_url TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -115,6 +116,12 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_content_difficulty ON content(difficulty);
     CREATE INDEX IF NOT EXISTS idx_technologies_domain ON technologies(domain_id);
   `);
+
+  const cols = await client.execute("PRAGMA table_info('users')");
+  const hasPortfolio = cols.rows.some(r => r['name'] === 'portfolio_url');
+  if (!hasPortfolio) {
+    await client.execute('ALTER TABLE users ADD COLUMN portfolio_url TEXT');
+  }
 }
 
 export function getClient(): Client {

@@ -3,7 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SlicePipe } from '@angular/common';
 import { ContentService } from '../../../core/services/content.service';
-import type { Content } from '../../../core/models/content.model';
+import type { Content, BodyBlock } from '../../../core/models/content.model';
 
 @Component({
   selector: 'app-content-detail',
@@ -39,12 +39,36 @@ export class ContentDetailComponent implements OnInit {
     }
   }
 
-  parseBody(body: string): string[] {
+  parseBlocks(body: string): BodyBlock[] {
     try {
       const parsed = JSON.parse(body);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0].type) {
+          return parsed as BodyBlock[];
+        }
+        return parsed.map((s: string) => ({ type: 'text' as const, content: s }));
+      }
     } catch { /* not JSON */ }
-    return [body];
+    return [{ type: 'text', content: body }];
+  }
+
+  isQuestion(item: Content): boolean {
+    return item.contentType === 'QUESTION';
+  }
+
+  getContentTypeLabel(item: Content): string {
+    const labels: Record<string, string> = {
+      QUESTION: 'Interview Question',
+      CONCEPT: 'Concept / Topic',
+      NOTE: 'Note',
+      CODE_EXAMPLE: 'Code Example',
+      CHEAT_SHEET: 'Cheat Sheet',
+      INTERVIEW_EXPERIENCE: 'Interview Experience',
+      PREPARATION_GUIDE: 'Preparation Guide',
+      SYSTEM_DESIGN: 'System Design',
+      DSA: 'DSA',
+    };
+    return labels[item.contentType] || item.contentType;
   }
 
   async copyCode(): Promise<void> {

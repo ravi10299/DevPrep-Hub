@@ -13,7 +13,18 @@ export async function seedDatabase(): Promise<void> {
   const db = getClient();
 
   const existing = await db.execute({ sql: 'SELECT id FROM users WHERE role = ?', args: ['ADMIN'] });
-  if (existing.rows.length > 0) return;
+  if (existing.rows.length > 0) {
+    const shashiExists = await db.execute({ sql: 'SELECT id FROM users WHERE email = ?', args: ['shashi@devprephub.com'] });
+    if (shashiExists.rows.length === 0) {
+      const shashiId = deterministicId('user:shashi');
+      const shashiHash = await bcryptjs.hash('AdminShashi1', 12);
+      await db.execute({
+        sql: 'INSERT INTO users (id, email, name, password_hash, role, portfolio_url) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [shashiId, 'shashi@devprephub.com', 'Shashi', shashiHash, 'CONTRIBUTOR', 'https://shashisa.vercel.app'],
+      });
+    }
+    return;
+  }
 
   const adminId = deterministicId('user:admin');
   const adminPasswordHash = await bcryptjs.hash(
@@ -26,6 +37,13 @@ export async function seedDatabase(): Promise<void> {
   statements.push({
     sql: 'INSERT INTO users (id, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)',
     args: [adminId, 'admin@devprephub.com', 'Admin', adminPasswordHash, 'ADMIN'],
+  });
+
+  const shashiId = deterministicId('user:shashi');
+  const shashiPasswordHash = await bcryptjs.hash('AdminShashi1', 12);
+  statements.push({
+    sql: 'INSERT INTO users (id, email, name, password_hash, role, portfolio_url) VALUES (?, ?, ?, ?, ?, ?)',
+    args: [shashiId, 'shashi@devprephub.com', 'Shashi', shashiPasswordHash, 'CONTRIBUTOR', 'https://shashisa.vercel.app'],
   });
 
   const domains: Record<string, string> = {};

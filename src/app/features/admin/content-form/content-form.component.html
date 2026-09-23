@@ -42,8 +42,23 @@
     </div>
 
     <div class="form-group">
-      <label for="body">Body *</label>
-      <textarea id="body" rows="10" [ngModel]="body()" (ngModelChange)="body.set($event)" name="body" required placeholder="Content body..."></textarea>
+      <label>Body *</label>
+      <div class="body-editor">
+        <div class="editor-toolbar">
+          <button type="button" class="toolbar-btn" (click)="insertFormat('heading', bodyArea)" title="Heading">
+            <span class="toolbar-icon">H</span>
+          </button>
+          <span class="toolbar-sep"></span>
+          <button type="button" class="toolbar-btn" (click)="insertFormat('list', bodyArea)" title="Bullet List">
+            <span class="toolbar-icon">&#8226; List</span>
+          </button>
+          <span class="toolbar-sep"></span>
+          <button type="button" class="toolbar-btn" (click)="insertFormat('code', bodyArea)" title="Code / Command">
+            <span class="toolbar-icon">&lt;/&gt;</span>
+          </button>
+        </div>
+        <textarea #bodyArea class="editor-textarea" rows="12" [value]="bodyText()" (input)="bodyText.set($any($event).target.value)" placeholder="Write your content here...&#10;&#10;Use the toolbar above or type:&#10;# Heading&#10;- List item&#10;&#96; code or command"></textarea>
+      </div>
     </div>
 
     <div class="form-row">
