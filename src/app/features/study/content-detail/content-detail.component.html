@@ -9,70 +9,112 @@
     <a routerLink="/">← Back to content</a>
   </div>
 } @else if (content(); as item) {
-  <article class="detail-card">
+  <article class="detail-article">
     <div class="detail-back">
-      <a routerLink="/">← Back to content</a>
+      <a routerLink="/">← Back to all content</a>
     </div>
 
-    <h1 class="detail-title">{{ item.title }}</h1>
+    <header class="article-header">
+      <span class="article-type-badge" [class.question-type]="isQuestion(item)" [class.concept-type]="!isQuestion(item) && item.contentType !== 'CHEAT_SHEET'" [class.cheatsheet-type]="item.contentType === 'CHEAT_SHEET'">
+        {{ getContentTypeLabel(item) }}
+      </span>
 
-    <div class="detail-meta">
-      @for (tech of item.technologies; track tech.id) {
-        <span class="technology-badge"
-          [class.angular]="tech.name === 'Angular'"
-          [class.java]="tech.name === 'Java Core'"
-          [class.spring]="tech.name === 'Spring Boot'"
-          [class.react]="tech.name === 'React'"
-          [class.mysql]="tech.name === 'MySQL'"
-        >
-          <i [class]="tech.icon"></i> {{ tech.name }}
-        </span>
+      <h1 class="article-title">{{ item.title }}</h1>
+
+      <div class="article-meta">
+        @for (tech of item.technologies; track tech.id) {
+          <span class="meta-tech">
+            <i [class]="tech.icon"></i> {{ tech.name }}
+          </span>
+        }
+
+        @for (company of item.companies; track company.id) {
+          <span class="meta-company">{{ company.name }}</span>
+        }
+
+        @if (item.difficulty) {
+          <span class="meta-difficulty" [class]="item.difficulty.toLowerCase()">
+            <span class="difficulty-dot"></span> {{ item.difficulty }}
+          </span>
+        }
+      </div>
+    </header>
+
+    <div class="article-body">
+      @if (isQuestion(item)) {
+        <div class="answer-label">Answer</div>
       }
 
-      @for (company of item.companies; track company.id) {
-        <span class="company-badge">{{ company.name }}</span>
-      }
-
-      @if (item.difficulty) {
-        <span class="difficulty-badge" [class]="item.difficulty.toLowerCase()">
-          <span class="difficulty-dot"></span> {{ item.difficulty }}
-        </span>
-      }
-    </div>
-
-    <div class="detail-body">
-      @for (point of parseBody(item.body); track $index) {
-        <p class="answer-point"><span class="bullet">▸</span> {{ point }}</p>
-      }
+      <div class="body-content">
+        @for (block of parseBlocks(item.body); track $index) {
+          @if (block.type === 'heading') {
+            <h3 class="block-heading">{{ block.content }}</h3>
+          } @else if (block.type === 'code') {
+            <div class="block-code"><code>{{ block.content }}</code></div>
+          } @else if (block.type === 'list') {
+            <ul class="block-list">
+              @for (li of $any(block.content); track $index) {
+                <li>{{ li }}</li>
+              }
+            </ul>
+          } @else {
+            <div class="body-point">
+              <span class="point-marker">▸</span>
+              <span class="point-text">{{ block.content }}</span>
+            </div>
+          }
+        }
+      </div>
     </div>
 
     @if (item.codeSnippet) {
-      <div class="code-wrapper">
-        <div class="code-toolbar">
-          <span class="code-language">{{ item.codeLanguage }}</span>
-          <button class="copy-button" type="button" (click)="copyCode()">
-            @if (copied()) {
-              <span class="copy-check">✓</span> Copied!
-            } @else {
-              Copy Code
-            }
-          </button>
+      <div class="code-section">
+        <div class="code-section-label">Code Example</div>
+        <div class="code-wrapper">
+          <div class="code-toolbar">
+            <span class="code-language">{{ item.codeLanguage }}</span>
+            <button class="copy-button" type="button" (click)="copyCode()">
+              @if (copied()) {
+                <span class="copy-check">✓</span> Copied!
+              } @else {
+                Copy Code
+              }
+            </button>
+          </div>
+          <pre><code>{{ item.codeSnippet }}</code></pre>
         </div>
-        <pre><code>{{ item.codeSnippet }}</code></pre>
       </div>
     }
 
     @if (item.tags.length) {
-      <div class="tags-row">
+      <div class="tags-section">
         @for (tag of item.tags; track tag.id) {
           <span class="tag-chip">{{ tag.name }}</span>
         }
       </div>
     }
 
-    <div class="detail-footer-meta">
-      <span>By {{ item.authorName }}</span>
-      <span>{{ item.createdAt | slice:0:10 }}</span>
-    </div>
+    <footer class="article-footer">
+      <div class="contributor-section">
+        @if (item.authorPortfolioUrl) {
+          <a [href]="item.authorPortfolioUrl" target="_blank" rel="noopener noreferrer" class="contributor-link">
+            <div class="contributor-avatar">{{ item.authorName.charAt(0) }}</div>
+            <div class="contributor-info">
+              <span class="contributor-role">Contributor</span>
+              <span class="contributor-name">{{ item.authorName }}</span>
+            </div>
+          </a>
+        } @else {
+          <div class="contributor-avatar">{{ item.authorName.charAt(0) }}</div>
+          <div class="contributor-info">
+            <span class="contributor-role">Contributor</span>
+            <span class="contributor-name">{{ item.authorName }}</span>
+          </div>
+        }
+      </div>
+      <div class="article-date">
+        Published {{ item.createdAt | slice:0:10 }}
+      </div>
+    </footer>
   </article>
 }

@@ -1,3 +1,8 @@
+export interface BodyBlock {
+  type: 'text' | 'heading' | 'list' | 'code';
+  content: string | string[];
+}
+
 export type ContentType =
   | 'QUESTION'
   | 'CONCEPT'
@@ -46,6 +51,7 @@ export interface Content {
   reviewNote: string | null;
   authorId: string;
   authorName: string;
+  authorPortfolioUrl: string | null;
   technologies: TechnologyRef[];
   companies: CompanyRef[];
   tags: TagRef[];

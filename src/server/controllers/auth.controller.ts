@@ -24,7 +24,7 @@ export async function login(req: AuthRequest, res: Response): Promise<void> {
 
   const db = getClient();
   const result = await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] });
-  const user = result.rows[0] as unknown as { id: string; email: string; name: string; password_hash: string; role: string } | undefined;
+  const user = result.rows[0] as unknown as { id: string; email: string; name: string; password_hash: string; role: string; portfolio_url: string | null } | undefined;
 
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
@@ -55,7 +55,7 @@ export async function login(req: AuthRequest, res: Response): Promise<void> {
 
   res.json({
     accessToken,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role, portfolioUrl: user.portfolio_url },
   });
 }
 
@@ -92,8 +92,8 @@ export async function me(req: AuthRequest, res: Response): Promise<void> {
   }
 
   const db = getClient();
-  const result = await db.execute({ sql: 'SELECT id, email, name, role FROM users WHERE id = ?', args: [req.user.userId] });
-  const user = result.rows[0] as unknown as { id: string; email: string; name: string; role: string } | undefined;
+  const result = await db.execute({ sql: 'SELECT id, email, name, role, portfolio_url FROM users WHERE id = ?', args: [req.user.userId] });
+  const user = result.rows[0] as unknown as { id: string; email: string; name: string; role: string; portfolio_url: string | null } | undefined;
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });

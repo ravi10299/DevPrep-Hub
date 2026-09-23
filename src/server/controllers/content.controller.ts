@@ -16,6 +16,7 @@ interface ContentRow {
   review_note: string | null;
   author_id: string;
   author_name: string;
+  author_portfolio_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -121,6 +122,7 @@ function formatContent(row: ContentRow, relations: Awaited<ReturnType<typeof att
     reviewNote: row.review_note,
     authorId: row.author_id,
     authorName: row.author_name,
+    authorPortfolioUrl: row.author_portfolio_url,
     technologies: relations.technologies,
     companies: relations.companies,
     tags: relations.tags,
@@ -189,7 +191,7 @@ export async function getPublicContent(req: Request, res: Response): Promise<voi
 
   const [countResult, rowsResult] = await Promise.all([
     db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
-    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.created_at ${sort} LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.created_at ${sort} LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
   ]);
 
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
@@ -204,7 +206,7 @@ export async function getPublicContent(req: Request, res: Response): Promise<voi
 export async function getPublicContentById(req: Request, res: Response): Promise<void> {
   const db = getClient();
   const result = await db.execute({
-    sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.status = 'APPROVED'`,
+    sql: `SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.status = 'APPROVED'`,
     args: [req.params['id'] as string],
   });
   const row = result.rows[0] as unknown as ContentRow | undefined;
@@ -222,7 +224,7 @@ export async function getPublicContentById(req: Request, res: Response): Promise
 export async function getAdminContentById(req: AuthRequest, res: Response): Promise<void> {
   const db = getClient();
   const result = await db.execute({
-    sql: 'SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ?',
+    sql: 'SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ?',
     args: [req.params['id'] as string],
   });
   const row = result.rows[0] as unknown as ContentRow | undefined;
@@ -266,7 +268,7 @@ export async function getAdminContent(req: AuthRequest, res: Response): Promise<
 
   const [countResult, rowsResult] = await Promise.all([
     db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
-    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
   ]);
 
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
@@ -432,7 +434,7 @@ export async function getContributorContent(req: AuthRequest, res: Response): Pr
 
   const [countResult, rowsResult] = await Promise.all([
     db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
-    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
   ]);
 
   const total = Number(countResult.rows[0]?.['count'] ?? 0);
@@ -448,7 +450,7 @@ export async function getContributorContent(req: AuthRequest, res: Response): Pr
 export async function getContributorContentById(req: AuthRequest, res: Response): Promise<void> {
   const db = getClient();
   const result = await db.execute({
-    sql: 'SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.author_id = ?',
+    sql: 'SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.author_id = ?',
     args: [req.params['id'] as string, req.user!.userId],
   });
   const row = result.rows[0] as unknown as ContentRow | undefined;
