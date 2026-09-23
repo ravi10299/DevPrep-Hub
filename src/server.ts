@@ -15,7 +15,7 @@ import contentRoutes from './server/routes/content.routes.js';
 import metadataRoutes from './server/routes/metadata.routes.js';
 
 // Initialize and seed database on first load (works in both dev and prod)
-initializeDatabase();
+await initializeDatabase();
 await seedDatabase();
 
 const browserDistFolder = join(import.meta.dirname, '../browser');

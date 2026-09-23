@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
-import { getDb } from '../db/database.js';
+import { getClient } from '../db/database.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
+import type { Client, InStatement, InValue } from '@libsql/client';
 
 interface ContentRow {
   id: string;
@@ -19,33 +20,40 @@ interface ContentRow {
   updated_at: string;
 }
 
-function attachRelations(db: ReturnType<typeof getDb>, contentId: string) {
-  const technologies = db.prepare(`
-    SELECT t.id, t.name, t.slug, t.icon, td.name as domain_name, td.slug as domain_slug
-    FROM content_technologies ct
-    JOIN technologies t ON ct.technology_id = t.id
-    JOIN technology_domains td ON t.domain_id = td.id
-    WHERE ct.content_id = ?
-  `).all(contentId) as { id: string; name: string; slug: string; icon: string; domain_name: string; domain_slug: string }[];
+async function attachRelations(db: Client, contentId: string) {
+  const [techResult, companyResult, tagResult] = await Promise.all([
+    db.execute({
+      sql: `SELECT t.id, t.name, t.slug, t.icon, td.name as domain_name, td.slug as domain_slug
+            FROM content_technologies ct
+            JOIN technologies t ON ct.technology_id = t.id
+            JOIN technology_domains td ON t.domain_id = td.id
+            WHERE ct.content_id = ?`,
+      args: [contentId],
+    }),
+    db.execute({
+      sql: `SELECT c.id, c.name, c.slug
+            FROM content_companies cc
+            JOIN companies c ON cc.company_id = c.id
+            WHERE cc.content_id = ?`,
+      args: [contentId],
+    }),
+    db.execute({
+      sql: `SELECT t.id, t.name, t.slug
+            FROM content_tags ct
+            JOIN tags t ON ct.tag_id = t.id
+            WHERE ct.content_id = ?`,
+      args: [contentId],
+    }),
+  ]);
 
-  const companies = db.prepare(`
-    SELECT c.id, c.name, c.slug
-    FROM content_companies cc
-    JOIN companies c ON cc.company_id = c.id
-    WHERE cc.content_id = ?
-  `).all(contentId) as { id: string; name: string; slug: string }[];
-
-  const tags = db.prepare(`
-    SELECT t.id, t.name, t.slug
-    FROM content_tags ct
-    JOIN tags t ON ct.tag_id = t.id
-    WHERE ct.content_id = ?
-  `).all(contentId) as { id: string; name: string; slug: string }[];
-
-  return { technologies, companies, tags };
+  return {
+    technologies: techResult.rows as unknown as { id: string; name: string; slug: string; icon: string; domain_name: string; domain_slug: string }[],
+    companies: companyResult.rows as unknown as { id: string; name: string; slug: string }[],
+    tags: tagResult.rows as unknown as { id: string; name: string; slug: string }[],
+  };
 }
 
-function formatContent(row: ContentRow, relations: ReturnType<typeof attachRelations>) {
+function formatContent(row: ContentRow, relations: Awaited<ReturnType<typeof attachRelations>>) {
   return {
     id: row.id,
     title: row.title,
@@ -67,14 +75,14 @@ function formatContent(row: ContentRow, relations: ReturnType<typeof attachRelat
 }
 
 // Public: get approved content with filters
-export function getPublicContent(req: Request, res: Response): void {
-  const db = getDb();
+export async function getPublicContent(req: Request, res: Response): Promise<void> {
+  const db = getClient();
   const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 20));
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ["c.status = 'APPROVED'"];
-  const params: unknown[] = [];
+  const params: InValue[] = [];
 
   if (req.query['search']) {
     const search = `%${req.query['search']}%`;
@@ -89,17 +97,17 @@ export function getPublicContent(req: Request, res: Response): void {
 
   if (req.query['contentType']) {
     conditions.push('c.content_type = ?');
-    params.push(req.query['contentType']);
+    params.push(req.query['contentType'] as string);
   }
 
   if (req.query['difficulty']) {
     conditions.push('c.difficulty = ?');
-    params.push(req.query['difficulty']);
+    params.push(req.query['difficulty'] as string);
   }
 
   if (req.query['technologyId']) {
     conditions.push('EXISTS (SELECT 1 FROM content_technologies ct4 WHERE ct4.content_id = c.id AND ct4.technology_id = ?)');
-    params.push(req.query['technologyId']);
+    params.push(req.query['technologyId'] as string);
   }
 
   if (req.query['domainId']) {
@@ -108,99 +116,91 @@ export function getPublicContent(req: Request, res: Response): void {
       JOIN technologies t5 ON ct5.technology_id = t5.id
       WHERE ct5.content_id = c.id AND t5.domain_id = ?
     )`);
-    params.push(req.query['domainId']);
+    params.push(req.query['domainId'] as string);
   }
 
   if (req.query['companyId']) {
     conditions.push('EXISTS (SELECT 1 FROM content_companies cc3 WHERE cc3.content_id = c.id AND cc3.company_id = ?)');
-    params.push(req.query['companyId']);
+    params.push(req.query['companyId'] as string);
   }
 
   if (req.query['tagId']) {
     conditions.push('EXISTS (SELECT 1 FROM content_tags ct6 WHERE ct6.content_id = c.id AND ct6.tag_id = ?)');
-    params.push(req.query['tagId']);
+    params.push(req.query['tagId'] as string);
   }
 
   const where = conditions.join(' AND ');
-
   const sort = req.query['sort'] === 'oldest' ? 'ASC' : 'DESC';
 
-  const total = (db.prepare(`
-    SELECT COUNT(*) as count FROM content c WHERE ${where}
-  `).get(...params) as { count: number }).count;
+  const [countResult, rowsResult] = await Promise.all([
+    db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.created_at ${sort} LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+  ]);
 
-  const rows = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE ${where}
-    ORDER BY c.created_at ${sort}
-    LIMIT ? OFFSET ?
-  `).all(...params, limit, offset) as ContentRow[];
+  const total = Number(countResult.rows[0]?.['count'] ?? 0);
+  const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = rows.map(row => {
-    const relations = attachRelations(db, row.id);
+  const data = await Promise.all(rows.map(async (row) => {
+    const relations = await attachRelations(db, row.id);
     return formatContent(row, relations);
-  });
+  }));
 
   res.json({ data, total, page, limit });
 }
 
-export function getPublicContentById(req: Request, res: Response): void {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE c.id = ? AND c.status = 'APPROVED'
-  `).get(req.params['id']) as ContentRow | undefined;
+export async function getPublicContentById(req: Request, res: Response): Promise<void> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.status = 'APPROVED'`,
+    args: [req.params['id'] as string],
+  });
+  const row = result.rows[0] as unknown as ContentRow | undefined;
 
   if (!row) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
 
-  const relations = attachRelations(db, row.id);
+  const relations = await attachRelations(db, row.id);
   res.json({ data: formatContent(row, relations) });
 }
 
 // Admin: get any content by ID (regardless of status)
-export function getAdminContentById(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE c.id = ?
-  `).get(req.params['id']) as ContentRow | undefined;
+export async function getAdminContentById(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: 'SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ?',
+    args: [req.params['id'] as string],
+  });
+  const row = result.rows[0] as unknown as ContentRow | undefined;
 
   if (!row) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
 
-  const relations = attachRelations(db, row.id);
+  const relations = await attachRelations(db, row.id);
   res.json({ data: formatContent(row, relations) });
 }
 
 // Admin: get all content
-export function getAdminContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function getAdminContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 20));
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['1=1'];
-  const params: unknown[] = [];
+  const params: InValue[] = [];
 
   if (req.query['status']) {
     conditions.push('c.status = ?');
-    params.push(req.query['status']);
+    params.push(req.query['status'] as string);
   }
 
   if (req.query['contentType']) {
     conditions.push('c.content_type = ?');
-    params.push(req.query['contentType']);
+    params.push(req.query['contentType'] as string);
   }
 
   if (req.query['search']) {
@@ -211,30 +211,25 @@ export function getAdminContent(req: AuthRequest, res: Response): void {
 
   const where = conditions.join(' AND ');
 
-  const total = (db.prepare(`
-    SELECT COUNT(*) as count FROM content c WHERE ${where}
-  `).get(...params) as { count: number }).count;
+  const [countResult, rowsResult] = await Promise.all([
+    db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+  ]);
 
-  const rows = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE ${where}
-    ORDER BY c.updated_at DESC
-    LIMIT ? OFFSET ?
-  `).all(...params, limit, offset) as ContentRow[];
+  const total = Number(countResult.rows[0]?.['count'] ?? 0);
+  const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = rows.map(row => {
-    const relations = attachRelations(db, row.id);
+  const data = await Promise.all(rows.map(async (row) => {
+    const relations = await attachRelations(db, row.id);
     return formatContent(row, relations);
-  });
+  }));
 
   res.json({ data, total, page, limit });
 }
 
 // Admin: create content (can publish directly)
-export function createAdminContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function createAdminContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const id = randomUUID();
   const {
     title, body, contentType, difficulty, codeSnippet, codeLanguage,
@@ -244,36 +239,42 @@ export function createAdminContent(req: AuthRequest, res: Response): void {
   const finalStatus = status || 'APPROVED';
   const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, finalStatus, req.user!.userId, now, now);
+  const statements: InStatement[] = [
+    {
+      sql: 'INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [id, title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, finalStatus, req.user!.userId, now, now],
+    },
+  ];
 
   if (technologyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)');
-    for (const tid of technologyIds) stmt.run(id, tid);
+    for (const tid of technologyIds) {
+      statements.push({ sql: 'INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)', args: [id, tid] });
+    }
   }
 
   if (companyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)');
-    for (const cid of companyIds) stmt.run(id, cid);
+    for (const cid of companyIds) {
+      statements.push({ sql: 'INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)', args: [id, cid] });
+    }
   }
 
   if (tagIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)');
-    for (const tid of tagIds) stmt.run(id, tid);
+    for (const tid of tagIds) {
+      statements.push({ sql: 'INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)', args: [id, tid] });
+    }
   }
 
+  await db.batch(statements, 'write');
   res.status(201).json({ id, status: finalStatus });
 }
 
 // Admin: update content
-export function updateAdminContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const contentId = req.params['id'];
+export async function updateAdminContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const contentId = req.params['id'] as string;
 
-  const existing = db.prepare('SELECT id FROM content WHERE id = ?').get(contentId);
-  if (!existing) {
+  const existing = await db.execute({ sql: 'SELECT id FROM content WHERE id = ?', args: [contentId] });
+  if (existing.rows.length === 0) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
@@ -285,39 +286,43 @@ export function updateAdminContent(req: AuthRequest, res: Response): void {
 
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE content SET title = ?, body = ?, content_type = ?, difficulty = ?,
-    code_snippet = ?, code_language = ?, status = ?, updated_at = ?
-    WHERE id = ?
-  `).run(title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, status || 'APPROVED', now, contentId);
-
-  db.prepare('DELETE FROM content_technologies WHERE content_id = ?').run(contentId);
-  db.prepare('DELETE FROM content_companies WHERE content_id = ?').run(contentId);
-  db.prepare('DELETE FROM content_tags WHERE content_id = ?').run(contentId);
+  const statements: InStatement[] = [
+    {
+      sql: 'UPDATE content SET title = ?, body = ?, content_type = ?, difficulty = ?, code_snippet = ?, code_language = ?, status = ?, updated_at = ? WHERE id = ?',
+      args: [title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, status || 'APPROVED', now, contentId],
+    },
+    { sql: 'DELETE FROM content_technologies WHERE content_id = ?', args: [contentId] },
+    { sql: 'DELETE FROM content_companies WHERE content_id = ?', args: [contentId] },
+    { sql: 'DELETE FROM content_tags WHERE content_id = ?', args: [contentId] },
+  ];
 
   if (technologyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)');
-    for (const tid of technologyIds) stmt.run(contentId, tid);
+    for (const tid of technologyIds) {
+      statements.push({ sql: 'INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)', args: [contentId, tid] });
+    }
   }
 
   if (companyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)');
-    for (const cid of companyIds) stmt.run(contentId, cid);
+    for (const cid of companyIds) {
+      statements.push({ sql: 'INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)', args: [contentId, cid] });
+    }
   }
 
   if (tagIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)');
-    for (const tid of tagIds) stmt.run(contentId, tid);
+    for (const tid of tagIds) {
+      statements.push({ sql: 'INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)', args: [contentId, tid] });
+    }
   }
 
+  await db.batch(statements, 'write');
   res.json({ id: contentId, status: status || 'APPROVED' });
 }
 
 // Admin: delete content
-export function deleteAdminContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const result = db.prepare('DELETE FROM content WHERE id = ?').run(req.params['id']);
-  if (result.changes === 0) {
+export async function deleteAdminContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const result = await db.execute({ sql: 'DELETE FROM content WHERE id = ?', args: [req.params['id'] as string] });
+  if (result.rowsAffected === 0) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
@@ -325,14 +330,15 @@ export function deleteAdminContent(req: AuthRequest, res: Response): void {
 }
 
 // Admin: approve content
-export function approveContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function approveContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const now = new Date().toISOString();
-  const result = db.prepare(`
-    UPDATE content SET status = 'APPROVED', review_note = NULL, updated_at = ? WHERE id = ?
-  `).run(now, req.params['id']);
+  const result = await db.execute({
+    sql: "UPDATE content SET status = 'APPROVED', review_note = NULL, updated_at = ? WHERE id = ?",
+    args: [now, req.params['id'] as string],
+  });
 
-  if (result.changes === 0) {
+  if (result.rowsAffected === 0) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
@@ -340,15 +346,16 @@ export function approveContent(req: AuthRequest, res: Response): void {
 }
 
 // Admin: reject content
-export function rejectContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function rejectContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const { reviewNote } = req.body;
   const now = new Date().toISOString();
-  const result = db.prepare(`
-    UPDATE content SET status = 'REJECTED', review_note = ?, updated_at = ? WHERE id = ?
-  `).run(reviewNote || null, now, req.params['id']);
+  const result = await db.execute({
+    sql: "UPDATE content SET status = 'REJECTED', review_note = ?, updated_at = ? WHERE id = ?",
+    args: [reviewNote || null, now, req.params['id'] as string],
+  });
 
-  if (result.changes === 0) {
+  if (result.rowsAffected === 0) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
@@ -356,65 +363,59 @@ export function rejectContent(req: AuthRequest, res: Response): void {
 }
 
 // Contributor: get own content
-export function getContributorContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function getContributorContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 20));
   const offset = (page - 1) * limit;
 
   const conditions: string[] = ['c.author_id = ?'];
-  const params: unknown[] = [req.user!.userId];
+  const params: InValue[] = [req.user!.userId];
 
   if (req.query['status']) {
     conditions.push('c.status = ?');
-    params.push(req.query['status']);
+    params.push(req.query['status'] as string);
   }
 
   const where = conditions.join(' AND ');
 
-  const total = (db.prepare(`
-    SELECT COUNT(*) as count FROM content c WHERE ${where}
-  `).get(...params) as { count: number }).count;
+  const [countResult, rowsResult] = await Promise.all([
+    db.execute({ sql: `SELECT COUNT(*) as count FROM content c WHERE ${where}`, args: params }),
+    db.execute({ sql: `SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE ${where} ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`, args: [...params, limit, offset] }),
+  ]);
 
-  const rows = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE ${where}
-    ORDER BY c.updated_at DESC
-    LIMIT ? OFFSET ?
-  `).all(...params, limit, offset) as ContentRow[];
+  const total = Number(countResult.rows[0]?.['count'] ?? 0);
+  const rows = rowsResult.rows as unknown as ContentRow[];
 
-  const data = rows.map(row => {
-    const relations = attachRelations(db, row.id);
+  const data = await Promise.all(rows.map(async (row) => {
+    const relations = await attachRelations(db, row.id);
     return formatContent(row, relations);
-  });
+  }));
 
   res.json({ data, total, page, limit });
 }
 
 // Contributor: get own content by ID
-export function getContributorContentById(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT c.*, u.name as author_name
-    FROM content c
-    JOIN users u ON c.author_id = u.id
-    WHERE c.id = ? AND c.author_id = ?
-  `).get(req.params['id'], req.user!.userId) as ContentRow | undefined;
+export async function getContributorContentById(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const result = await db.execute({
+    sql: 'SELECT c.*, u.name as author_name FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.author_id = ?',
+    args: [req.params['id'] as string, req.user!.userId],
+  });
+  const row = result.rows[0] as unknown as ContentRow | undefined;
 
   if (!row) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
 
-  const relations = attachRelations(db, row.id);
+  const relations = await attachRelations(db, row.id);
   res.json({ data: formatContent(row, relations) });
 }
 
 // Contributor: create content (always DRAFT)
-export function createContributorContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
+export async function createContributorContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
   const id = randomUUID();
   const {
     title, body, contentType, difficulty, codeSnippet, codeLanguage,
@@ -423,49 +424,57 @@ export function createContributorContent(req: AuthRequest, res: Response): void 
 
   const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?)
-  `).run(id, title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, req.user!.userId, now, now);
+  const statements: InStatement[] = [
+    {
+      sql: "INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?)",
+      args: [id, title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, req.user!.userId, now, now],
+    },
+  ];
 
   if (technologyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)');
-    for (const tid of technologyIds) stmt.run(id, tid);
+    for (const tid of technologyIds) {
+      statements.push({ sql: 'INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)', args: [id, tid] });
+    }
   }
 
   if (companyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)');
-    for (const cid of companyIds) stmt.run(id, cid);
+    for (const cid of companyIds) {
+      statements.push({ sql: 'INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)', args: [id, cid] });
+    }
   }
 
   if (tagIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)');
-    for (const tid of tagIds) stmt.run(id, tid);
+    for (const tid of tagIds) {
+      statements.push({ sql: 'INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)', args: [id, tid] });
+    }
   }
 
+  await db.batch(statements, 'write');
   res.status(201).json({ id, status: 'DRAFT' });
 }
 
 // Contributor: update own content (only DRAFT or REJECTED)
-export function updateContributorContent(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const contentId = req.params['id'];
+export async function updateContributorContent(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const contentId = req.params['id'] as string;
 
-  const existing = db.prepare(
-    'SELECT id, status, author_id FROM content WHERE id = ?'
-  ).get(contentId) as { id: string; status: string; author_id: string } | undefined;
+  const existing = await db.execute({
+    sql: 'SELECT id, status, author_id FROM content WHERE id = ?',
+    args: [contentId],
+  });
+  const row = existing.rows[0] as unknown as { id: string; status: string; author_id: string } | undefined;
 
-  if (!existing) {
+  if (!row) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
 
-  if (existing.author_id !== req.user!.userId) {
+  if (row.author_id !== req.user!.userId) {
     res.status(403).json({ error: 'You can only edit your own content' });
     return;
   }
 
-  if (existing.status !== 'DRAFT' && existing.status !== 'REJECTED') {
+  if (row.status !== 'DRAFT' && row.status !== 'REJECTED') {
     res.status(400).json({ error: 'Only DRAFT or REJECTED content can be edited' });
     return;
   }
@@ -477,62 +486,69 @@ export function updateContributorContent(req: AuthRequest, res: Response): void 
 
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE content SET title = ?, body = ?, content_type = ?, difficulty = ?,
-    code_snippet = ?, code_language = ?, status = 'DRAFT', review_note = NULL, updated_at = ?
-    WHERE id = ?
-  `).run(title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, now, contentId);
-
-  db.prepare('DELETE FROM content_technologies WHERE content_id = ?').run(contentId);
-  db.prepare('DELETE FROM content_companies WHERE content_id = ?').run(contentId);
-  db.prepare('DELETE FROM content_tags WHERE content_id = ?').run(contentId);
+  const statements: InStatement[] = [
+    {
+      sql: "UPDATE content SET title = ?, body = ?, content_type = ?, difficulty = ?, code_snippet = ?, code_language = ?, status = 'DRAFT', review_note = NULL, updated_at = ? WHERE id = ?",
+      args: [title, body, contentType, difficulty || null, codeSnippet || null, codeLanguage || null, now, contentId],
+    },
+    { sql: 'DELETE FROM content_technologies WHERE content_id = ?', args: [contentId] },
+    { sql: 'DELETE FROM content_companies WHERE content_id = ?', args: [contentId] },
+    { sql: 'DELETE FROM content_tags WHERE content_id = ?', args: [contentId] },
+  ];
 
   if (technologyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)');
-    for (const tid of technologyIds) stmt.run(contentId, tid);
+    for (const tid of technologyIds) {
+      statements.push({ sql: 'INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)', args: [contentId, tid] });
+    }
   }
 
   if (companyIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)');
-    for (const cid of companyIds) stmt.run(contentId, cid);
+    for (const cid of companyIds) {
+      statements.push({ sql: 'INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)', args: [contentId, cid] });
+    }
   }
 
   if (tagIds?.length) {
-    const stmt = db.prepare('INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)');
-    for (const tid of tagIds) stmt.run(contentId, tid);
+    for (const tid of tagIds) {
+      statements.push({ sql: 'INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)', args: [contentId, tid] });
+    }
   }
 
+  await db.batch(statements, 'write');
   res.json({ id: contentId, status: 'DRAFT' });
 }
 
 // Contributor: submit for review
-export function submitForReview(req: AuthRequest, res: Response): void {
-  const db = getDb();
-  const contentId = req.params['id'];
+export async function submitForReview(req: AuthRequest, res: Response): Promise<void> {
+  const db = getClient();
+  const contentId = req.params['id'] as string;
 
-  const existing = db.prepare(
-    'SELECT id, status, author_id FROM content WHERE id = ?'
-  ).get(contentId) as { id: string; status: string; author_id: string } | undefined;
+  const existing = await db.execute({
+    sql: 'SELECT id, status, author_id FROM content WHERE id = ?',
+    args: [contentId],
+  });
+  const row = existing.rows[0] as unknown as { id: string; status: string; author_id: string } | undefined;
 
-  if (!existing) {
+  if (!row) {
     res.status(404).json({ error: 'Content not found' });
     return;
   }
 
-  if (existing.author_id !== req.user!.userId) {
+  if (row.author_id !== req.user!.userId) {
     res.status(403).json({ error: 'You can only submit your own content' });
     return;
   }
 
-  if (existing.status !== 'DRAFT') {
+  if (row.status !== 'DRAFT') {
     res.status(400).json({ error: 'Only DRAFT content can be submitted for review' });
     return;
   }
 
   const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE content SET status = 'PENDING_REVIEW', updated_at = ? WHERE id = ?
-  `).run(now, contentId);
+  await db.execute({
+    sql: "UPDATE content SET status = 'PENDING_REVIEW', updated_at = ? WHERE id = ?",
+    args: [now, contentId],
+  });
 
   res.json({ message: 'Submitted for review' });
 }

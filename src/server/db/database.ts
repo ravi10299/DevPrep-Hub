@@ -1,28 +1,26 @@
-import Database from 'better-sqlite3';
+import { createClient, type Client } from '@libsql/client';
 import { join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 
-const isServerless = !!(process.env['VERCEL'] || process.env['AWS_LAMBDA_FUNCTION_NAME']);
-const DB_DIR = isServerless ? '/tmp/data' : join(process.cwd(), 'data');
-mkdirSync(DB_DIR, { recursive: true });
-const DB_PATH = process.env['DATABASE_URL']?.replace('file:', '') ||
-  join(DB_DIR, 'devprep.db');
+let client: Client;
 
-let db: Database.Database;
+export async function initializeDatabase(): Promise<void> {
+  if (client) return;
 
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+  const url = process.env['TURSO_DATABASE_URL'];
+  const authToken = process.env['TURSO_AUTH_TOKEN'];
+
+  if (url) {
+    client = createClient({ url, authToken });
+  } else {
+    const dbDir = join(process.cwd(), 'data');
+    mkdirSync(dbDir, { recursive: true });
+    client = createClient({ url: `file:${join(dbDir, 'devprep.db')}` });
   }
-  return db;
-}
 
-export function initializeDatabase(): void {
-  const database = getDb();
+  await client.executeMultiple(`
+    PRAGMA foreign_keys = ON;
 
-  database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -117,4 +115,8 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_content_difficulty ON content(difficulty);
     CREATE INDEX IF NOT EXISTS idx_technologies_domain ON technologies(domain_id);
   `);
+}
+
+export function getClient(): Client {
+  return client;
 }

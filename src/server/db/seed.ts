@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import bcryptjs from 'bcryptjs';
-import { getDb, initializeDatabase } from './database.js';
+import { getClient, initializeDatabase } from './database.js';
+import type { InStatement } from '@libsql/client';
 
 function deterministicId(seed: string): string {
   const hex = createHash('sha256').update(`devprephub:${seed}`).digest('hex');
@@ -8,11 +9,11 @@ function deterministicId(seed: string): string {
 }
 
 export async function seedDatabase(): Promise<void> {
-  initializeDatabase();
-  const db = getDb();
+  await initializeDatabase();
+  const db = getClient();
 
-  const existingAdmin = db.prepare('SELECT id FROM users WHERE role = ?').get('ADMIN');
-  if (existingAdmin) return;
+  const existing = await db.execute({ sql: 'SELECT id FROM users WHERE role = ?', args: ['ADMIN'] });
+  if (existing.rows.length > 0) return;
 
   const adminId = deterministicId('user:admin');
   const adminPasswordHash = await bcryptjs.hash(
@@ -20,12 +21,13 @@ export async function seedDatabase(): Promise<void> {
     12
   );
 
-  db.prepare(`
-    INSERT INTO users (id, email, name, password_hash, role)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(adminId, 'admin@devprephub.com', 'Admin', adminPasswordHash, 'ADMIN');
+  const statements: InStatement[] = [];
 
-  // Technology domains
+  statements.push({
+    sql: 'INSERT INTO users (id, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)',
+    args: [adminId, 'admin@devprephub.com', 'Admin', adminPasswordHash, 'ADMIN'],
+  });
+
   const domains: Record<string, string> = {};
   const domainData = [
     { name: 'Programming Languages', slug: 'programming', sort: 0 },
@@ -35,16 +37,15 @@ export async function seedDatabase(): Promise<void> {
     { name: 'Behavioral / HR', slug: 'behavioral', sort: 4 },
   ];
 
-  const insertDomain = db.prepare(`
-    INSERT INTO technology_domains (id, name, slug, sort_order) VALUES (?, ?, ?, ?)
-  `);
   for (const d of domainData) {
     const id = deterministicId(`domain:${d.slug}`);
-    insertDomain.run(id, d.name, d.slug, d.sort);
     domains[d.slug] = id;
+    statements.push({
+      sql: 'INSERT INTO technology_domains (id, name, slug, sort_order) VALUES (?, ?, ?, ?)',
+      args: [id, d.name, d.slug, d.sort],
+    });
   }
 
-  // Technologies (preserving existing 6)
   const techs: Record<string, string> = {};
   const techData = [
     { name: 'Java Core', slug: 'java-core', icon: 'devicon-java-plain', domain: 'programming', sort: 0 },
@@ -55,16 +56,15 @@ export async function seedDatabase(): Promise<void> {
     { name: 'HR', slug: 'hr', icon: 'devicon-hugo-plain colored', domain: 'behavioral', sort: 0 },
   ];
 
-  const insertTech = db.prepare(`
-    INSERT INTO technologies (id, name, slug, icon, domain_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)
-  `);
   for (const t of techData) {
     const id = deterministicId(`tech:${t.slug}`);
-    insertTech.run(id, t.name, t.slug, t.icon, domains[t.domain], t.sort);
     techs[t.name] = id;
+    statements.push({
+      sql: 'INSERT INTO technologies (id, name, slug, icon, domain_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      args: [id, t.name, t.slug, t.icon, domains[t.domain], t.sort],
+    });
   }
 
-  // Companies (preserving existing 6)
   const companies: Record<string, string> = {};
   const companyData = [
     { name: 'Infosys', slug: 'infosys' },
@@ -75,16 +75,15 @@ export async function seedDatabase(): Promise<void> {
     { name: 'Amazon', slug: 'amazon' },
   ];
 
-  const insertCompany = db.prepare(`
-    INSERT INTO companies (id, name, slug) VALUES (?, ?, ?)
-  `);
   for (const c of companyData) {
     const id = deterministicId(`company:${c.slug}`);
-    insertCompany.run(id, c.name, c.slug);
     companies[c.name] = id;
+    statements.push({
+      sql: 'INSERT INTO companies (id, name, slug) VALUES (?, ?, ?)',
+      args: [id, c.name, c.slug],
+    });
   }
 
-  // Tags
   const tags: Record<string, string> = {};
   const tagNames = [
     'Angular', 'Lifecycle Hooks', 'ngOnInit', 'Components',
@@ -101,25 +100,18 @@ export async function seedDatabase(): Promise<void> {
     'Java', 'Exception Handling', 'Checked Exception', 'Unchecked Exception',
   ];
 
-  const insertTag = db.prepare(`
-    INSERT OR IGNORE INTO tags (id, name, slug) VALUES (?, ?, ?)
-  `);
   for (const name of tagNames) {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (!tags[name]) {
       const id = deterministicId(`tag:${slug}`);
-      insertTag.run(id, name, slug);
       tags[name] = id;
+      statements.push({
+        sql: 'INSERT OR IGNORE INTO tags (id, name, slug) VALUES (?, ?, ?)',
+        args: [id, name, slug],
+      });
     }
   }
 
-  // Re-read tags to capture deduped IDs
-  const allTags = db.prepare('SELECT id, name FROM tags').all() as { id: string; name: string }[];
-  for (const t of allTags) {
-    tags[t.name] = t.id;
-  }
-
-  // Seed existing 12 questions
   const questions = [
     {
       title: 'What are Angular Lifecycle Hooks? Explain ngOnInit() with example.',
@@ -274,46 +266,40 @@ export async function seedDatabase(): Promise<void> {
     },
   ];
 
-  const insertContent = db.prepare(`
-    INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'APPROVED', ?)
-  `);
-  const insertContentTech = db.prepare(`
-    INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)
-  `);
-  const insertContentCompany = db.prepare(`
-    INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)
-  `);
-  const insertContentTag = db.prepare(`
-    INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)
-  `);
+  for (const q of questions) {
+    const contentId = deterministicId(`content:${q.title}`);
+    const body = JSON.stringify(q.answer);
 
-  const seedAll = db.transaction(() => {
-    for (const q of questions) {
-      const contentId = deterministicId(`content:${q.title}`);
-      const body = JSON.stringify(q.answer);
+    statements.push({
+      sql: `INSERT INTO content (id, title, body, content_type, difficulty, code_snippet, code_language, status, author_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'APPROVED', ?)`,
+      args: [contentId, q.title, body, 'QUESTION', q.difficulty, q.code || null, q.codeLanguage || null, adminId],
+    });
 
-      insertContent.run(
-        contentId, q.title, body, 'QUESTION', q.difficulty,
-        q.code || null, q.codeLanguage || null, adminId
-      );
+    if (techs[q.technology]) {
+      statements.push({
+        sql: 'INSERT INTO content_technologies (content_id, technology_id) VALUES (?, ?)',
+        args: [contentId, techs[q.technology]],
+      });
+    }
 
-      if (techs[q.technology]) {
-        insertContentTech.run(contentId, techs[q.technology]);
-      }
+    if (companies[q.company]) {
+      statements.push({
+        sql: 'INSERT INTO content_companies (content_id, company_id) VALUES (?, ?)',
+        args: [contentId, companies[q.company]],
+      });
+    }
 
-      if (companies[q.company]) {
-        insertContentCompany.run(contentId, companies[q.company]);
-      }
-
-      for (const tagName of q.tags) {
-        if (tags[tagName]) {
-          insertContentTag.run(contentId, tags[tagName]);
-        }
+    for (const tagName of q.tags) {
+      if (tags[tagName]) {
+        statements.push({
+          sql: 'INSERT INTO content_tags (content_id, tag_id) VALUES (?, ?)',
+          args: [contentId, tags[tagName]],
+        });
       }
     }
-  });
+  }
 
-  seedAll();
+  await db.batch(statements, 'write');
   console.log('Database seeded with initial data');
 }

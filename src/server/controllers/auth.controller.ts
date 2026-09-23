@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
-import { getDb } from '../db/database.js';
+import { getClient } from '../db/database.js';
 import type { AuthRequest, AuthPayload } from '../middleware/auth.middleware.js';
 
 const JWT_SECRET = process.env['JWT_SECRET'] || 'CHANGE_ME_BEFORE_PRODUCTION';
@@ -22,10 +22,9 @@ export async function login(req: AuthRequest, res: Response): Promise<void> {
     return;
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as {
-    id: string; email: string; name: string; password_hash: string; role: string;
-  } | undefined;
+  const db = getClient();
+  const result = await db.execute({ sql: 'SELECT * FROM users WHERE email = ?', args: [email] });
+  const user = result.rows[0] as unknown as { id: string; email: string; name: string; password_hash: string; role: string } | undefined;
 
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
@@ -86,16 +85,15 @@ export function logout(_req: AuthRequest, res: Response): void {
   res.json({ message: 'Logged out' });
 }
 
-export function me(req: AuthRequest, res: Response): void {
+export async function me(req: AuthRequest, res: Response): Promise<void> {
   if (!req.user) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
-  const db = getDb();
-  const user = db.prepare('SELECT id, email, name, role FROM users WHERE id = ?').get(req.user.userId) as {
-    id: string; email: string; name: string; role: string;
-  } | undefined;
+  const db = getClient();
+  const result = await db.execute({ sql: 'SELECT id, email, name, role FROM users WHERE id = ?', args: [req.user.userId] });
+  const user = result.rows[0] as unknown as { id: string; email: string; name: string; role: string } | undefined;
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });

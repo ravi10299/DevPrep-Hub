@@ -37,7 +37,7 @@
               "entry": "src/server.ts"
             },
             "externalDependencies": [
-              "better-sqlite3",
+              "@libsql/client",
               "bcryptjs",
               "jsonwebtoken",
               "cookie-parser"
