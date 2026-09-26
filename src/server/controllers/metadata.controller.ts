@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { getClient } from '../db/database.js';
+import { getCached, setCache, invalidateCache } from '../cache.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
 
 function slugify(name: string): string {
@@ -115,6 +116,13 @@ function resolveIcon(name: string, explicitIcon?: string): string {
 // ── Technologies (public + admin) ──
 
 export async function getTechnologies(_req: Request, res: Response): Promise<void> {
+  const cached = getCached<{ data: unknown }>('meta:technologies');
+  if (cached) {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.json(cached);
+    return;
+  }
+
   const db = getClient();
 
   const [domainResult, techResult] = await Promise.all([
@@ -137,7 +145,10 @@ export async function getTechnologies(_req: Request, res: Response): Promise<voi
     technologies: techs.filter(t => t.domain_id === domain.id),
   }));
 
-  res.json({ data: grouped });
+  const payload = { data: grouped };
+  setCache('meta:technologies', payload, 300_000);
+  res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  res.json(payload);
 }
 
 export async function createTechnology(req: AuthRequest, res: Response): Promise<void> {
@@ -152,6 +163,7 @@ export async function createTechnology(req: AuthRequest, res: Response): Promise
       sql: 'INSERT INTO technologies (id, name, slug, icon, domain_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
       args: [id, name, slug, resolvedIcon, domainId, sortOrder || 0],
     });
+    invalidateCache('meta:');
     res.status(201).json({ id, name, slug });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '';
@@ -177,6 +189,7 @@ export async function updateTechnology(req: AuthRequest, res: Response): Promise
     res.status(404).json({ error: 'Technology not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ id: req.params['id'], name, slug });
 }
 
@@ -187,6 +200,7 @@ export async function deleteTechnology(req: AuthRequest, res: Response): Promise
     res.status(404).json({ error: 'Technology not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ message: 'Technology deleted' });
 }
 
@@ -203,6 +217,7 @@ export async function createDomain(req: AuthRequest, res: Response): Promise<voi
       sql: 'INSERT INTO technology_domains (id, name, slug, sort_order) VALUES (?, ?, ?, ?)',
       args: [id, name, slug, sortOrder || 0],
     });
+    invalidateCache('meta:');
     res.status(201).json({ id, name, slug });
   } catch {
     res.status(409).json({ error: 'Domain already exists' });
@@ -222,6 +237,7 @@ export async function updateDomain(req: AuthRequest, res: Response): Promise<voi
     res.status(404).json({ error: 'Domain not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ id: req.params['id'], name, slug });
 }
 
@@ -238,12 +254,20 @@ export async function deleteDomain(req: AuthRequest, res: Response): Promise<voi
   }
 
   await db.execute({ sql: 'DELETE FROM technology_domains WHERE id = ?', args: [req.params['id'] as string] });
+  invalidateCache('meta:');
   res.json({ message: 'Domain deleted' });
 }
 
 // ── Companies (public + admin) ──
 
 export async function getCompanies(_req: Request, res: Response): Promise<void> {
+  const cached = getCached<{ data: unknown }>('meta:companies');
+  if (cached) {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.json(cached);
+    return;
+  }
+
   const db = getClient();
   const result = await db.execute(`
     SELECT c.id, c.name, c.slug,
@@ -253,7 +277,10 @@ export async function getCompanies(_req: Request, res: Response): Promise<void> 
     FROM companies c
     ORDER BY c.name
   `);
-  res.json({ data: result.rows });
+  const payload = { data: result.rows };
+  setCache('meta:companies', payload, 300_000);
+  res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  res.json(payload);
 }
 
 export async function createCompany(req: AuthRequest, res: Response): Promise<void> {
@@ -264,6 +291,7 @@ export async function createCompany(req: AuthRequest, res: Response): Promise<vo
 
   try {
     await db.execute({ sql: 'INSERT INTO companies (id, name, slug) VALUES (?, ?, ?)', args: [id, name, slug] });
+    invalidateCache('meta:');
     res.status(201).json({ id, name, slug });
   } catch {
     res.status(409).json({ error: 'Company already exists' });
@@ -282,6 +310,7 @@ export async function updateCompany(req: AuthRequest, res: Response): Promise<vo
     res.status(404).json({ error: 'Company not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ id: req.params['id'], name, slug });
 }
 
@@ -292,12 +321,20 @@ export async function deleteCompany(req: AuthRequest, res: Response): Promise<vo
     res.status(404).json({ error: 'Company not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ message: 'Company deleted' });
 }
 
 // ── Tags (public + admin) ──
 
 export async function getTags(_req: Request, res: Response): Promise<void> {
+  const cached = getCached<{ data: unknown }>('meta:tags');
+  if (cached) {
+    res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.json(cached);
+    return;
+  }
+
   const db = getClient();
   const result = await db.execute(`
     SELECT t.id, t.name, t.slug,
@@ -307,7 +344,10 @@ export async function getTags(_req: Request, res: Response): Promise<void> {
     FROM tags t
     ORDER BY t.name
   `);
-  res.json({ data: result.rows });
+  const payload = { data: result.rows };
+  setCache('meta:tags', payload, 300_000);
+  res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  res.json(payload);
 }
 
 export async function createTag(req: AuthRequest, res: Response): Promise<void> {
@@ -318,6 +358,7 @@ export async function createTag(req: AuthRequest, res: Response): Promise<void> 
 
   try {
     await db.execute({ sql: 'INSERT INTO tags (id, name, slug) VALUES (?, ?, ?)', args: [id, name, slug] });
+    invalidateCache('meta:');
     res.status(201).json({ id, name, slug });
   } catch {
     res.status(409).json({ error: 'Tag already exists' });
@@ -336,6 +377,7 @@ export async function updateTag(req: AuthRequest, res: Response): Promise<void> 
     res.status(404).json({ error: 'Tag not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ id: req.params['id'], name, slug });
 }
 
@@ -346,6 +388,7 @@ export async function deleteTag(req: AuthRequest, res: Response): Promise<void> 
     res.status(404).json({ error: 'Tag not found' });
     return;
   }
+  invalidateCache('meta:');
   res.json({ message: 'Tag deleted' });
 }
 
