@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { getClient } from '../db/database.js';
+import { getCached, setCache, invalidateCache } from '../cache.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
 import type { Client, InStatement, InValue } from '@libsql/client';
 
@@ -133,6 +134,14 @@ function formatContent(row: ContentRow, relations: Awaited<ReturnType<typeof att
 
 // Public: get approved content with filters
 export async function getPublicContent(req: Request, res: Response): Promise<void> {
+  const cacheKey = `content:list:${req.url}`;
+  const cached = getCached<{ data: unknown; total: number; page: number; limit: number }>(cacheKey);
+  if (cached) {
+    res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    res.json(cached);
+    return;
+  }
+
   const db = getClient();
   const page = Math.max(1, parseInt(req.query['page'] as string) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query['limit'] as string) || 20));
@@ -200,14 +209,26 @@ export async function getPublicContent(req: Request, res: Response): Promise<voi
   const relationsMap = await batchAttachRelations(db, rows.map(r => r.id));
   const data = rows.map(row => formatContent(row, relationsMap[row.id]));
 
-  res.json({ data, total, page, limit });
+  const payload = { data, total, page, limit };
+  setCache(cacheKey, payload, 60_000);
+  res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  res.json(payload);
 }
 
 export async function getPublicContentById(req: Request, res: Response): Promise<void> {
+  const id = req.params['id'] as string;
+  const cacheKey = `content:detail:${id}`;
+  const cached = getCached<{ data: unknown }>(cacheKey);
+  if (cached) {
+    res.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
+    res.json(cached);
+    return;
+  }
+
   const db = getClient();
   const result = await db.execute({
     sql: `SELECT c.*, u.name as author_name, u.portfolio_url as author_portfolio_url FROM content c JOIN users u ON c.author_id = u.id WHERE c.id = ? AND c.status = 'APPROVED'`,
-    args: [req.params['id'] as string],
+    args: [id],
   });
   const row = result.rows[0] as unknown as ContentRow | undefined;
 
@@ -217,7 +238,10 @@ export async function getPublicContentById(req: Request, res: Response): Promise
   }
 
   const relations = await attachRelations(db, row.id);
-  res.json({ data: formatContent(row, relations) });
+  const payload = { data: formatContent(row, relations) };
+  setCache(cacheKey, payload, 120_000);
+  res.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600');
+  res.json(payload);
 }
 
 // Admin: get any content by ID (regardless of status)
@@ -318,6 +342,7 @@ export async function createAdminContent(req: AuthRequest, res: Response): Promi
   }
 
   await db.batch(statements, 'write');
+  invalidateCache('content:');
   res.status(201).json({ id, status: finalStatus });
 }
 
@@ -368,6 +393,7 @@ export async function updateAdminContent(req: AuthRequest, res: Response): Promi
   }
 
   await db.batch(statements, 'write');
+  invalidateCache('content:');
   res.json({ id: contentId, status: status || 'APPROVED' });
 }
 
@@ -379,6 +405,7 @@ export async function deleteAdminContent(req: AuthRequest, res: Response): Promi
     res.status(404).json({ error: 'Content not found' });
     return;
   }
+  invalidateCache('content:');
   res.json({ message: 'Content deleted' });
 }
 
@@ -395,6 +422,7 @@ export async function approveContent(req: AuthRequest, res: Response): Promise<v
     res.status(404).json({ error: 'Content not found' });
     return;
   }
+  invalidateCache('content:');
   res.json({ message: 'Content approved' });
 }
 
@@ -412,6 +440,7 @@ export async function rejectContent(req: AuthRequest, res: Response): Promise<vo
     res.status(404).json({ error: 'Content not found' });
     return;
   }
+  invalidateCache('content:');
   res.json({ message: 'Content rejected' });
 }
 
@@ -501,6 +530,7 @@ export async function createContributorContent(req: AuthRequest, res: Response):
   }
 
   await db.batch(statements, 'write');
+  invalidateCache('content:');
   res.status(201).json({ id, status: 'DRAFT' });
 }
 
@@ -566,6 +596,7 @@ export async function updateContributorContent(req: AuthRequest, res: Response):
   }
 
   await db.batch(statements, 'write');
+  invalidateCache('content:');
   res.json({ id: contentId, status: 'DRAFT' });
 }
 
@@ -601,5 +632,6 @@ export async function submitForReview(req: AuthRequest, res: Response): Promise<
     args: [now, contentId],
   });
 
+  invalidateCache('content:');
   res.json({ message: 'Submitted for review' });
 }
